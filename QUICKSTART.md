@@ -71,7 +71,41 @@ Use TODO.md as the task source of truth. For Size >= M or Risk >= Medium tasks, 
 
 完了したタスクは [TODO.md](TODO.md) から削除します。Done / Archived セクションは作りません。
 
-## 5. 検証コマンド
+## 5. 環境変数の設定(otibo.dev 固有)
+
+法務ページで使用する環境変数を設定します。Server Components がビルド時に読み込むため、`NEXT_PUBLIC_` プレフィックスは不要です。
+
+### ローカル開発
+
+`.env.example` をコピーして `.env.local` を作成し、実値を記入します。
+
+```bash
+cp .env.example .env.local
+# .env.local を編集して実値を設定する
+```
+
+`.env.local` はリポジトリに **絶対にコミットしない**。`.gitignore` で除外済み。
+
+### Cloudflare Pages へのデプロイ(オーナー実施)
+
+1. Cloudflare Pages でプロジェクトを作成し、GitHub リポジトリを連携する。
+2. **Build settings**:
+   - Build command: `npm run build`
+   - Build output directory: `out`
+   - Root directory: `/`(デフォルト)
+3. **Environment variables**(Settings → Environment variables):
+   - `OWNER_NAME` — 特商法に記載する事業者名(本名)
+   - `OWNER_ADDRESS` — 特商法に記載する住所(バーチャルオフィス等)
+   - `OWNER_PHONE` — 特商法に記載する電話番号
+   - `EFFECTIVE_DATE` — Medo プライバシーポリシー・利用規約の発効日(例: `2026-01-01`)
+   - 変数は Production / Preview の両環境に設定する。
+4. **カスタムドメイン**: `otibo.dev` の A/AAAA レコードを Cloudflare Pages の指示に従って設定する。
+5. デプロイ後、全 7 ページ(/ / /tokushoho / /medo/privacy / /medo/terms / /medo/account-deletion / /sarae / /stash)を通読して実値の反映を確認する。
+6. `contact@otibo.dev` へテスト送信し、catch-all(Cloudflare Email Routing)で受信できることを確認する。
+
+> **注意**: `/medo/account-deletion` の URL は Google Play データセーフティフォームに提出するため、公開後に変更しない。
+
+## 7. 検証コマンド
 
 ```bash
 deno fmt --check scripts/*.mjs
@@ -94,7 +128,7 @@ CI では markdownlint と上記 Deno validator を実行します。手元で N
 npx markdownlint-cli2 "_docs/**/*.md" "_evals/**/*.md" "README.md" "AGENTS.md" "TODO.md" "QUICKSTART.md"
 ```
 
-## 6. 配布用 ZIP
+## 8. 配布用 ZIP
 
 テンプレートを配布する場合は、`.git` や `.jj` などの VCS メタデータを含めないでください。GitHub 標準アーカイブ、または次のコマンドを使います。
 

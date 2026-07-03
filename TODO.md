@@ -380,8 +380,18 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   1. [x] Plan / Intent / QA を作成する
   2. [x] Plan の「オーナー確認 checklist」(1)〜(11) を解消する(全 11 項目クローズ。最後の (1) はドラフト 2 巡目のオーナー通読承認で解消 2026-07-04)
   3. [x] **法的文書ドラフト確定(2026-07-04 オーナー通読承認)**: 4 本のドラフトを `_docs/draft/Legal/legal-pages/` に作成・承認済み(medo-privacy / medo-terms / tokushoho / medo-account-deletion)。【オーナー確認】マーカー残ゼロ(残るのは【実装時反映】/【オーナー記入】プレースホルダ 6 箇所 — 実装フェーズで反映)
-  4. [ ] route 構造 + 共通 layout を設計・実装する(プレースホルダの実値反映を含む)
-  5. [ ] Verification を残す
+  4. [x] **4a: スキャフォールド再構築(2026-07-04)** — 旧 repo 破棄でコード消失のため、Next.js 14 App Router + Panda CSS + @otibo/ui (Approach 4) + biome + TypeScript strict + `output: "export"` を再スキャフォールド。package.json / tsconfig / panda.config / next.config / biome.json / .gitignore 作成。`npm install` → `panda codegen` PASS。
+  5. [x] **4b: route 構造実装(2026-07-04)** — `app/(legal)/` route group 作成。`/tokushoho`, `/medo/privacy`, `/medo/terms`, `/medo/account-deletion`, `/sarae`, `/stash` の 6 法務ルートを実装。
+  6. [x] **4c: 共通 LegalLayout 実装(2026-07-04)** — `app/(legal)/layout.tsx` に長文読書面(16px base / lineHeight.normal 1.55 / prose 幅 720px)。otibo-ui token 使用。839c11f long-form reading grammar 採用。
+  7. [x] **4d: 法的文書転記(2026-07-04)** — ドラフト 4 本を文言変更なしで page.tsx に転記。見出し構造化(h1/h2/h3)・リンク化のみ実施。文言変更なし。
+  8. [x] **4e: env 設計(2026-07-04)** — OWNER_NAME / OWNER_ADDRESS / OWNER_PHONE / EFFECTIVE_DATE を `process.env.X ?? フォールバック` で実装。`.env.example` 作成。リポジトリに実値なし。
+  9. [x] **4f: SEO meta 設定(2026-07-04)** — 法務 4 ページ: `robots: { index: true }`。placeholder 2 ページ: `robots: { index: false }`。intent INV-005 準拠コメント付き。
+  10. [x] **4g: top page 実装(2026-07-04)** — 一枚トップ。otibo 紹介 / プロダクト一覧(Medo・Sarae・Stash + ステータス表示) / about preview / 連絡導線 / footer(法務リンク)。Amendment 後スコープ(/works /about /contact は廃止)。
+  11. [x] **4h: gen-interface-jp フォント適用(2026-07-04)** — layout.tsx で 400/500/display-500 ロード。
+  12. [x] **4i: lint / typecheck / build 検証(2026-07-04)** — `npm run lint` / `npm run typecheck` / `npm run build` 全 exit 0。10 route HTML 生成(/ + 7 法務 + 404 + /_not-found)。
+  13. [x] **4j: 静的検証(2026-07-04)** — 全 7 route の HTML 存在確認。noindex 設定確認。個人情報実値 0 件(grep)。フォールバックプレースホルダ表示確認。lang="ja" 確認。ドラフト見出しとの突合。
+  14. [ ] **4k: オーナー作業(デプロイ前・公開前)** — ① Cloudflare Pages に連携し Build command: `npm run build` / Output dir: `out` を設定。② Environment Variables に OWNER_NAME / OWNER_ADDRESS / OWNER_PHONE / EFFECTIVE_DATE の実値を設定。③ カスタムドメイン(otibo.dev)の DNS 設定(A/AAAA レコード)。④ `contact@otibo.dev` へのテスト送信で catch-all 受信確認。⑤ デプロイ後、全 7 ページを通読して表示・実値反映を確認。⑥ ストア審査等で Play に URL 提出後は URL を変更しない。
+  15. [x] **Verification を残す(2026-07-04)** — `_docs/qa/Legal/legal-pages/verification.md` 作成。自動・静的検証可能な全項目 PASS。オーナー実施事項(4k)は pending として記録。
 - **Description**:
   - Context: 旧 otibo-dev repo を破棄して新規 clone したため、法的ページが消失した。Medo の事前登録には privacy / terms / account-deletion、otibo には特商法表記が法的に必要。
   - Notes: Plan / Intent / QA 必須(Size M, Risk Medium)。サイトパーパス intent(`_docs/intent/Site/otibo-dev-site-purpose/decision.md`)が本タスクの上位文書。同 intent により法的文書は新規書き起こしで確定(旧テキストの jj reflog 復旧案は撤回、2026-07-03)。依存 App-Feat-10(scaffold)は verification PASS(`_docs/qa/App/scaffold/verification.md`)で完了済みのため解決済み。AC-003 変更(2026-07-03): オーナー指示により Stash(repo: `/home/penne/dev/active/stash`)を placeholder 掲載対象に追加、Sarae / Stash とも placeholder で確定(Sarae はロゴ未整備)。`/medo/account-deletion` の機能要件は調査完了で確定(2026-07-03): 静的ページ + 削除リクエスト導線(mailto or フォーム)で Play 要件を満たせる。web 削除機能実装は不要。Survey: `_docs/survey/Legal/legal-pages/survey.md`(Play 要件一次情報 + Medo 事実インベントリ)。前提の最終確定(2026-07-03): otibo.dev は web 未配信(DNS 検証: A / AAAA なし)、Medo はストア未公開・クローズドテスト前(オーナー確認)— **完全グリーンフィールド、無 404 移行制約なし**。新規書き起こし維持で確定(再判断完了、backcast/public 既存ドラフトは事実参照資料に格下げ)。連絡先は `contact@otibo.dev` に統一(フォームは作らず mailto)。特商法表記は本名・バーチャルオフィス住所・電話番号を公開(番号はオーナー提供済み・実装時反映、リポジトリには書き込まない)。checklist 残件は (1)(6) の 2 点のみ、次工程は法的文書ドラフト執筆(ドラフト往復)。
