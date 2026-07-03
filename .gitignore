@@ -1,0 +1,30 @@
+# Node
+node_modules/
+*.log
+
+# Next.js
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+
+# Panda CSS codegen output
+styled-system/
+
+# Env
+.env
+.env.*.local
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Coverage / temp
+coverage/
+*.tsbuildinfo
