@@ -2,7 +2,7 @@
 
 ## 0. System Metadata
 
-- **Current Max ID**: `Next ID No: 9` (タスク追加時にインクリメント必須)
+- **Current Max ID**: `Next ID No: 13` (タスク追加時にインクリメント必須)
 - **ID Source of Truth**: このファイルの `Next ID No` 行が、全プロジェクトにおける唯一の ID 発番元である。
 
 ## 1. Task Lifecycle (State Machine)
@@ -357,59 +357,38 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
 - **QA**: None
 - **Verification**: None
 
-### Docs-Chore-3: [Chore] Update LICENSE.txt author attribution
-
-- **Title**: [Chore] Update LICENSE.txt author attribution
-- **ID**: Docs-Chore-3
-- **Priority**: P2
-- **Size**: XS
-- **Risk**: Low
-- **Area**: Docs
-- **Dependencies**: []
-- **Goal**: `LICENSE.txt` の著作者名が正しいものに編集されている。
-- **Acceptance Criteria**:
-  - AC-001: `LICENSE.txt` の著作者表示がプロジェクトの権利者に更新されている。
-  - AC-002: README のライセンスリンクが `LICENSE.txt` を参照している。
-- **Steps**:
-  1. [ ] `LICENSE.txt` を開き、著作者名を確認する
-  2. [ ] 正しい著作者名に編集する
-  3. [ ] README のライセンスリンクを確認する
-- **Description**:
-  - Context: OSS 配布前に著作者表示をプロジェクトに合わせる。
-  - Notes: `Size XS` かつ `Risk Low` のため Plan / Intent / QA は不要。
-- **Plan**: None
-- **Intent**: None
-- **QA**: None
-- **Verification**: None
-
-### Workflow-Chore-7: [Chore] Set incremental adoption scope
-
-- **Title**: [Chore] Set incremental adoption scope
-- **ID**: Workflow-Chore-7
-- **Priority**: P2
-- **Size**: XS
-- **Risk**: Low
-- **Area**: Workflow
-- **Dependencies**: []
-- **Goal**: 既存プロジェクトへ後付け導入する場合に、導入以降に追加した docs だけが検証対象になるよう導入スコープが設定されている。
-- **Acceptance Criteria**:
-  - AC-001: 既存プロジェクトへ導入する場合、CI に `DD_SCOPE_BASE: <導入時点の commit SHA または tag>` が設定されている。
-  - AC-002: `actions/checkout` が `fetch-depth: 0` に設定され、baseline commit を参照できる。
-- **Steps**:
-  1. [ ] 導入時点の commit SHA / tag を baseline として決める
-  2. [ ] CI 環境変数に `DD_SCOPE_BASE` を設定する
-  3. [ ] `actions/checkout` を `fetch-depth: 0` にする
-- **Description**:
-  - Context: 新規プロジェクトでは不要。既存プロジェクトへ後付け導入する場合のみ着手する条件付きタスク。導入しない場合はこのタスクを削除してよい。
-  - Notes: 手順は QUICKSTART「既存プロジェクトへ後付け導入する場合」と `_docs/standards/documentation_operations.md` の段階的導入スコープを参照。`Size XS` かつ `Risk Low` のため Plan / Intent / QA は不要。
-- **Plan**: None
-- **Intent**: None
-- **QA**: None
-- **Verification**: None
-
 ---
 
 ## Ready
+
+### Legal-Feat-9: [Feat] Set up legal pages for Medo / Sarae / otibo
+
+- **Title**: [Feat] Set up legal pages for Medo / Sarae / otibo
+- **ID**: Legal-Feat-9
+- **Priority**: P1
+- **Size**: M
+- **Risk**: Medium
+- **Area**: Legal
+- **Dependencies**: [App-Feat-10]
+- **Goal**: Medo / Sarae / otibo の必要な法的ページが otibo.dev で配信できる状態である。
+- **Acceptance Criteria**:
+  - AC-001: `/medo/privacy`, `/medo/terms`, `/medo/account-deletion` が公開され、必要な記述要件を満たす。
+  - AC-002: `/tokushoho`(otibo)が公開され、特定商取引法に基づく記載要件を満たす。
+  - AC-003: Sarae / Stash 用のページが「準備中」placeholder か本実装で用意されている(製品状況に応じて選択。現時点の決定は両方 placeholder)。
+  - AC-004: SEO 用 meta(noindex 等)が必要に応じて設定されている。
+- **Steps**:
+  1. [x] Plan / Intent / QA を作成する
+  2. [x] Plan の「オーナー確認 checklist」(1)〜(11) を解消する(全 11 項目クローズ。最後の (1) はドラフト 2 巡目のオーナー通読承認で解消 2026-07-04)
+  3. [x] **法的文書ドラフト確定(2026-07-04 オーナー通読承認)**: 4 本のドラフトを `_docs/draft/Legal/legal-pages/` に作成・承認済み(medo-privacy / medo-terms / tokushoho / medo-account-deletion)。【オーナー確認】マーカー残ゼロ(残るのは【実装時反映】/【オーナー記入】プレースホルダ 6 箇所 — 実装フェーズで反映)
+  4. [ ] route 構造 + 共通 layout を設計・実装する(プレースホルダの実値反映を含む)
+  5. [ ] Verification を残す
+- **Description**:
+  - Context: 旧 otibo-dev repo を破棄して新規 clone したため、法的ページが消失した。Medo の事前登録には privacy / terms / account-deletion、otibo には特商法表記が法的に必要。
+  - Notes: Plan / Intent / QA 必須(Size M, Risk Medium)。サイトパーパス intent(`_docs/intent/Site/otibo-dev-site-purpose/decision.md`)が本タスクの上位文書。同 intent により法的文書は新規書き起こしで確定(旧テキストの jj reflog 復旧案は撤回、2026-07-03)。依存 App-Feat-10(scaffold)は verification PASS(`_docs/qa/App/scaffold/verification.md`)で完了済みのため解決済み。AC-003 変更(2026-07-03): オーナー指示により Stash(repo: `/home/penne/dev/active/stash`)を placeholder 掲載対象に追加、Sarae / Stash とも placeholder で確定(Sarae はロゴ未整備)。`/medo/account-deletion` の機能要件は調査完了で確定(2026-07-03): 静的ページ + 削除リクエスト導線(mailto or フォーム)で Play 要件を満たせる。web 削除機能実装は不要。Survey: `_docs/survey/Legal/legal-pages/survey.md`(Play 要件一次情報 + Medo 事実インベントリ)。前提の最終確定(2026-07-03): otibo.dev は web 未配信(DNS 検証: A / AAAA なし)、Medo はストア未公開・クローズドテスト前(オーナー確認)— **完全グリーンフィールド、無 404 移行制約なし**。新規書き起こし維持で確定(再判断完了、backcast/public 既存ドラフトは事実参照資料に格下げ)。連絡先は `contact@otibo.dev` に統一(フォームは作らず mailto)。特商法表記は本名・バーチャルオフィス住所・電話番号を公開(番号はオーナー提供済み・実装時反映、リポジトリには書き込まない)。checklist 残件は (1)(6) の 2 点のみ、次工程は法的文書ドラフト執筆(ドラフト往復)。
+- **Plan**: _docs/plan/Legal/legal-pages/plan.md
+- **Intent**: _docs/intent/Legal/legal-pages/decision.md
+- **QA**: _docs/qa/Legal/legal-pages/test-plan.md
+- **Verification**: None
 
 ---
 
