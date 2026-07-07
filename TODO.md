@@ -2,7 +2,7 @@
 
 ## 0. System Metadata
 
-- **Current Max ID**: `Next ID No: 13` (タスク追加時にインクリメント必須)
+- **Current Max ID**: `Next ID No: 20` (タスク追加時にインクリメント必須)
 - **ID Source of Truth**: このファイルの `Next ID No` 行が、全プロジェクトにおける唯一の ID 発番元である。
 
 ## 1. Task Lifecycle (State Machine)
@@ -357,49 +357,131 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
 - **QA**: None
 - **Verification**: None
 
+### Site-Feat-17: [Feat] First Viewを基盤にトップページをゼロから再設計する
+
+- **Title**: [Feat] First Viewを基盤にトップページをゼロから再設計する
+- **ID**: Site-Feat-17
+- **Priority**: P1
+- **Size**: L
+- **Risk**: Medium
+- **Area**: Site
+- **Dependencies**: []
+- **Goal**: light shaderを唯一の確定済みvisual foundationとして、3秒の印象と30秒の理解を実在する材料で成立させた一枚トップが完成している。
+- **Acceptance Criteria**:
+  - AC-001: shader-only baselineはlocal限定で、production deploy対象から除外されている。
+  - AC-002: First View、短いprinciple、product紹介、contact / 所在の4段階がこの順で成立している。
+  - AC-003: First Viewは光と`otibo`だけを維持している。
+  - AC-004: 30秒以内にotiboの実体、現行product、必要導線を事実から確認できる。
+  - AC-005: principle、各productのname / description / status、contact / legal導線は承認済みsourceへ追跡できる。
+  - AC-006: desktop / mobile、reduced motion、semantic structure、keyboard navigationが成立する。
+  - AC-007: Next.js static exportとWorkers Static Assets dry-runが成功する。
+  - AC-008: オーナーが3秒 / 30秒の体験とproduction visualを承認している。
+- **Steps**:
+  1. [x] `Site-Enhance-14`のshader-only local baselineを完了する
+  2. [x] 4段階それぞれのcontent contractを定義する
+  3. [ ] owner copy、掲載product、status、asset、link、contact / legal導線をcontractへ充足する（文言とMedo logoは初版反映済み）
+  4. [x] 全体compositionとproduct紹介の候補表現を試作・判定する
+  5. [ ] responsive / motion / semantic / keyboard behaviorを実装する（`@otibo/ui@0.4.0` primitiveへの組み直しを進行中）
+  6. [ ] static build / Workers dry-run / browser QA / owner reviewを実施する
+  7. [ ] verificationがPASSになった完成ページだけをdeploy candidateにする
+- **Description**:
+  - Context: 旧Products / About / Contact / Footerはshaderとvisual canon確立前の初期実装で、Panda CSS stylesheetも実配信されていなかった。旧構成の修復ではなく、site purposeから下流を再設計する。
+  - Notes: 「First View → principle的な短文 → product紹介 → contact / 所在」を上位情報骨格とする。これは責務と読む順序であり、固定section templateやproduct cardを必須にしない。shader-only状態はproduction deploy禁止。
+- **Plan**: _docs/plan/Site/top-page-rebuild/plan.md
+- **Intent**: _docs/intent/Site/top-page-rebuild/decision.md
+- **QA**: _docs/qa/Site/top-page-rebuild/test-plan.md
+- **Verification**: _docs/qa/Site/top-page-rebuild/verification.md
+
+### App-Chore-16: [Chore] Next.js 内部 PostCSS advisory の解消を追跡する
+
+- **Title**: [Chore] Next.js 内部 PostCSS advisory の解消を追跡する
+- **ID**: App-Chore-16
+- **Priority**: P2
+- **Size**: XS
+- **Risk**: Low
+- **Area**: App
+- **Dependencies**: []
+- **Goal**: Next.js の安全な upstream update により、production dependency の PostCSS advisory が破壊的 downgrade なしで解消されている。
+- **Acceptance Criteria**:
+  - AC-001: `npm audit --omit=dev` が PostCSS `GHSA-qx2v-qp2m-jg93` を報告しない。
+  - AC-002: Next.js を旧 major へ downgrade せず、lint / typecheck / test / build / Wrangler dry-run が成功する。
+- **Steps**:
+  1. [ ] Next.js stable release が内部 PostCSS を 8.5.10 以上へ更新したか確認する
+  2. [ ] framework を安全な stable version へ更新する
+  3. [ ] production audit と build / deploy dry-run を再実行する
+- **Description**:
+  - Context: 2026-07-10 時点の最新 stable `next@16.2.10` は内部で `postcss@8.4.31` を固定し、npm audit が moderate advisory を2件報告する。
+  - Notes: `npm audit fix --force` は Next.js 9.3.3 への破壊的 downgrade を提案するため使用しない。サイトは外部 CSS 入力を処理せず、PostCSS は build-time にのみ使われる。
+- **Plan**: None
+- **Intent**: None
+- **QA**: None
+- **Verification**: None
+
 ---
 
 ## Ready
 
-### Legal-Feat-9: [Feat] Set up legal pages for Medo / Sarae / otibo
+### Legal-Chore-13: [Chore] Medo ストア公開時に EFFECTIVE_DATE を設定し再デプロイ
 
-- **Title**: [Feat] Set up legal pages for Medo / Sarae / otibo
-- **ID**: Legal-Feat-9
+- **Title**: [Chore] Medo ストア公開時に EFFECTIVE_DATE を設定し再デプロイ
+- **ID**: Legal-Chore-13
 - **Priority**: P1
-- **Size**: M
-- **Risk**: Medium
+- **Size**: XS
+- **Risk**: Low
 - **Area**: Legal
-- **Dependencies**: [App-Feat-10]
-- **Goal**: Medo / Sarae / otibo の必要な法的ページが otibo.dev で配信できる状態である。
+- **Dependencies**: []
+- **Goal**: Medo ストア公開に合わせて EFFECTIVE_DATE の実値が法務ページに反映されている。
 - **Acceptance Criteria**:
-  - AC-001: `/medo/privacy`, `/medo/terms`, `/medo/account-deletion` が公開され、必要な記述要件を満たす。
-  - AC-002: `/tokushoho`(otibo)が公開され、特定商取引法に基づく記載要件を満たす。
-  - AC-003: Sarae / Stash 用のページが「準備中」placeholder か本実装で用意されている(製品状況に応じて選択。現時点の決定は両方 placeholder)。
-  - AC-004: SEO 用 meta(noindex 等)が必要に応じて設定されている。
+  - AC-001: `.env.local` の `EFFECTIVE_DATE` に正式施行日が設定されている。
+  - AC-002: 再デプロイ後、ライブページで「ストア公開日をもって発効」フォールバック文言が実日付に置き換わっている。
+  - AC-003: `/medo/account-deletion` の URL が変更されていないことを確認する(Play ストア提出後は URL 変更禁止)。
 - **Steps**:
-  1. [x] Plan / Intent / QA を作成する
-  2. [x] Plan の「オーナー確認 checklist」(1)〜(11) を解消する(全 11 項目クローズ。最後の (1) はドラフト 2 巡目のオーナー通読承認で解消 2026-07-04)
-  3. [x] **法的文書ドラフト確定(2026-07-04 オーナー通読承認)**: 4 本のドラフトを `_docs/draft/Legal/legal-pages/` に作成・承認済み(medo-privacy / medo-terms / tokushoho / medo-account-deletion)。【オーナー確認】マーカー残ゼロ(残るのは【実装時反映】/【オーナー記入】プレースホルダ 6 箇所 — 実装フェーズで反映)
-  4. [x] **4a: スキャフォールド再構築(2026-07-04)** — 旧 repo 破棄でコード消失のため、Next.js 14 App Router + Panda CSS + @otibo/ui (Approach 4) + biome + TypeScript strict + `output: "export"` を再スキャフォールド。package.json / tsconfig / panda.config / next.config / biome.json / .gitignore 作成。`npm install` → `panda codegen` PASS。
-  5. [x] **4b: route 構造実装(2026-07-04)** — `app/(legal)/` route group 作成。`/tokushoho`, `/medo/privacy`, `/medo/terms`, `/medo/account-deletion`, `/sarae`, `/stash` の 6 法務ルートを実装。
-  6. [x] **4c: 共通 LegalLayout 実装(2026-07-04)** — `app/(legal)/layout.tsx` に長文読書面(16px base / lineHeight.normal 1.55 / prose 幅 720px)。otibo-ui token 使用。839c11f long-form reading grammar 採用。
-  7. [x] **4d: 法的文書転記(2026-07-04)** — ドラフト 4 本を文言変更なしで page.tsx に転記。見出し構造化(h1/h2/h3)・リンク化のみ実施。文言変更なし。
-  8. [x] **4e: env 設計(2026-07-04)** — OWNER_NAME / OWNER_ADDRESS / OWNER_PHONE / EFFECTIVE_DATE を `process.env.X ?? フォールバック` で実装。`.env.example` 作成。リポジトリに実値なし。
-  9. [x] **4f: SEO meta 設定(2026-07-04)** — 法務 4 ページ: `robots: { index: true }`。placeholder 2 ページ: `robots: { index: false }`。intent INV-005 準拠コメント付き。
-  10. [x] **4g: top page 実装(2026-07-04)** — 一枚トップ。otibo 紹介 / プロダクト一覧(Medo・Sarae・Stash + ステータス表示) / about preview / 連絡導線 / footer(法務リンク)。Amendment 後スコープ(/works /about /contact は廃止)。
-  11. [x] **4h: gen-interface-jp フォント適用(2026-07-04)** — layout.tsx で 400/500/display-500 ロード。
-  12. [x] **4i: lint / typecheck / build 検証(2026-07-04)** — `npm run lint` / `npm run typecheck` / `npm run build` 全 exit 0。10 route HTML 生成(/ + 7 法務 + 404 + /_not-found)。
-  13. [x] **4j: 静的検証(2026-07-04)** — 全 7 route の HTML 存在確認。noindex 設定確認。個人情報実値 0 件(grep)。フォールバックプレースホルダ表示確認。lang="ja" 確認。ドラフト見出しとの突合。
-  14. [ ] **4k: オーナー作業(デプロイ前・公開前)** — ① Cloudflare Pages に連携し Build command: `npm run build` / Output dir: `out` を設定。② Environment Variables に OWNER_NAME / OWNER_ADDRESS / OWNER_PHONE / EFFECTIVE_DATE の実値を設定。③ カスタムドメイン(otibo.dev)の DNS 設定(A/AAAA レコード)。④ `contact@otibo.dev` へのテスト送信で catch-all 受信確認。⑤ デプロイ後、全 7 ページを通読して表示・実値反映を確認。⑥ ストア審査等で Play に URL 提出後は URL を変更しない。
-  15. [x] **Verification を残す(2026-07-04)** — `_docs/qa/Legal/legal-pages/verification.md` 作成。自動・静的検証可能な全項目 PASS。オーナー実施事項(4k)は pending として記録。
+  1. [ ] Medo ストア公開日が確定したら `.env.local` の `EFFECTIVE_DATE` を設定する
+  2. [ ] `npm run build` → `npx wrangler deploy` を実行する
+  3. [ ] ライブページでフォールバック文言が消えて実日付が表示されることを確認する
+  4. [ ] `/medo/account-deletion` の URL が変更されていないことを確認する
 - **Description**:
-  - Context: 旧 otibo-dev repo を破棄して新規 clone したため、法的ページが消失した。Medo の事前登録には privacy / terms / account-deletion、otibo には特商法表記が法的に必要。
-  - Notes: Plan / Intent / QA 必須(Size M, Risk Medium)。サイトパーパス intent(`_docs/intent/Site/otibo-dev-site-purpose/decision.md`)が本タスクの上位文書。同 intent により法的文書は新規書き起こしで確定(旧テキストの jj reflog 復旧案は撤回、2026-07-03)。依存 App-Feat-10(scaffold)は verification PASS(`_docs/qa/App/scaffold/verification.md`)で完了済みのため解決済み。AC-003 変更(2026-07-03): オーナー指示により Stash(repo: `/home/penne/dev/active/stash`)を placeholder 掲載対象に追加、Sarae / Stash とも placeholder で確定(Sarae はロゴ未整備)。`/medo/account-deletion` の機能要件は調査完了で確定(2026-07-03): 静的ページ + 削除リクエスト導線(mailto or フォーム)で Play 要件を満たせる。web 削除機能実装は不要。Survey: `_docs/survey/Legal/legal-pages/survey.md`(Play 要件一次情報 + Medo 事実インベントリ)。前提の最終確定(2026-07-03): otibo.dev は web 未配信(DNS 検証: A / AAAA なし)、Medo はストア未公開・クローズドテスト前(オーナー確認)— **完全グリーンフィールド、無 404 移行制約なし**。新規書き起こし維持で確定(再判断完了、backcast/public 既存ドラフトは事実参照資料に格下げ)。連絡先は `contact@otibo.dev` に統一(フォームは作らず mailto)。特商法表記は本名・バーチャルオフィス住所・電話番号を公開(番号はオーナー提供済み・実装時反映、リポジトリには書き込まない)。checklist 残件は (1)(6) の 2 点のみ、次工程は法的文書ドラフト執筆(ドラフト往復)。
-- **Plan**: _docs/plan/Legal/legal-pages/plan.md
-- **Intent**: _docs/intent/Legal/legal-pages/decision.md
-- **QA**: _docs/qa/Legal/legal-pages/test-plan.md
+  - Context: Legal-Feat-9 完了時点で EFFECTIVE_DATE はフォールバック文言「ストア公開日をもって発効」のまま公開。設計通りの後続 chore。
+  - Notes: Play ストア提出後は `/medo/account-deletion` URL の変更禁止(ストア審査要件)。`Size XS` かつ `Risk Low` のため Plan / Intent / QA は不要。
+- **Plan**: None
+- **Intent**: None
+- **QA**: None
 - **Verification**: None
 
 ---
 
 ## In Progress
+
+### App-Enhance-15: [Enhance] Next.js 16 と Workers static export の基盤を確立する
+
+- **Title**: [Enhance] Next.js 16 と Workers static export の基盤を確立する
+- **ID**: App-Enhance-15
+- **Priority**: P0
+- **Size**: M
+- **Risk**: Medium
+- **Area**: App
+- **Dependencies**: []
+- **Goal**: Next.js 16 / React 19 / `@otibo/ui@0.2.0` のサイトが Cloudflare Workers Static Assets 向けに再現可能な static export を生成する。
+- **Acceptance Criteria**:
+  - AC-001: Next.js 16、React 19、`@otibo/ui@0.2.0`、Base UI 1.6、Panda CSS 1.11 の dependency tree に invalid peer がない。
+  - AC-002: lint、typecheck、test、Panda codegen、Next.js production build が成功する。
+  - AC-003: 全公開 route が static export され、deploy artifact が `out/` に生成される。
+  - AC-004: lockfile に固定された Wrangler で Workers Static Assets の deploy dry-run が成功する。
+  - AC-005: Node.js 22 以上と build-time environment variable の運用境界が文書化される。
+  - AC-006: OpenNext、Worker script、runtime binding を導入していない。
+- **Steps**:
+  1. [x] `@otibo/ui@0.2.0` の registry metadata と React 19 consumer install を確認する
+  2. [x] dependency と package scripts を更新する
+  3. [x] Panda CSS、Biome、Next.js、Wrangler の設定を更新する
+  4. [x] dependency / lint / typecheck / test / build gate を実行する
+  5. [x] Wrangler Static Assets dry-run と browser regression を確認する
+  6. [x] verification を残す
+- **Description**:
+  - Context: Cloudflare Workers は変更不可の deploy target。現行 `output: "export"` と `out/` asset deployment は維持できるため、OpenNext を使わず platform baseline を先に更新する。
+  - Notes: `@otibo/ui@0.2.0` は React 18 / 19 と Panda CSS 1.11 を peer として公開済み。production deploy は本タスクで実行しない。
+- **Plan**: _docs/plan/App/workers-static-export-next16/plan.md
+- **Intent**: _docs/intent/App/workers-static-export-next16/decision.md
+- **QA**: _docs/qa/App/workers-static-export-next16/test-plan.md
+- **Verification**: _docs/qa/App/workers-static-export-next16/verification.md
+
+---

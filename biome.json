@@ -1,12 +1,21 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
+  "$schema": "https://biomejs.dev/schemas/2.5.3/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "preset": "recommended"
     }
   },
   "formatter": {
@@ -15,15 +24,20 @@
     "indentWidth": 2
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      ".next",
-      "styled-system",
-      "_docs",
-      "_evals",
-      "scripts",
-      "TODO.md",
-      "next-env.d.ts"
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/.next",
+      "!**/out",
+      "!**/styled-system",
+      "!**/_docs",
+      "!**/_evals",
+      "!**/scripts",
+      "!**/prototypes",
+      "!**/tmp",
+      "!**/TODO.md",
+      "!**/next-env.d.ts"
     ]
   }
 }

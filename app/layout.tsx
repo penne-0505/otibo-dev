@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import "gen-interface-jp/400.css";
-import "gen-interface-jp/500.css";
-import "gen-interface-jp/display-500.css";
+import "@otibo/ui/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

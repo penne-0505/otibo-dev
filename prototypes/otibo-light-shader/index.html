@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>otibo light shader prototype</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #102029;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+        background: #102029;
+      }
+
+      body {
+        font-family:
+          "Helvetica Neue",
+          "Avenir Next",
+          "Segoe UI",
+          sans-serif;
+      }
+
+      main {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+        min-height: 100svh;
+        isolation: isolate;
+        background: #102029;
+      }
+
+      canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      h1 {
+        position: absolute;
+        z-index: 2;
+        left: clamp(2.4rem, 8vw, 8.4rem);
+        top: 56%;
+        margin: 0;
+        color: rgba(17, 27, 31, 0.58);
+        font-size: clamp(1.85rem, 4.1vw, 4.9rem);
+        font-weight: 300;
+        line-height: 1;
+        letter-spacing: 0.2em;
+        text-transform: lowercase;
+        transform: translateY(-50%);
+        text-rendering: geometricprecision;
+        user-select: none;
+      }
+
+      @media (max-aspect-ratio: 3 / 4) {
+        h1 {
+          left: 8.8vw;
+          top: 55%;
+          font-size: clamp(2rem, 9vw, 4.2rem);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        h1 {
+          transform: translateY(-50%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main aria-label="otibo light shader prototype">
+      <canvas id="shader-canvas" aria-hidden="true"></canvas>
+      <h1>otibo</h1>
+    </main>
+
+    <script type="x-shader/x-vertex" id="vertex-shader">
+      #version 300 es
+      precision highp float;
+
+      in vec2 position;
+
+      void main() {
+        gl_Position = vec4(position, 0.0, 1.0);
+      }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragment-shader">
+      #version 300 es
+      precision highp float;
+
+      uniform vec2 u_resolution;
+      uniform float u_time;
+      uniform float u_motion;
+      uniform sampler2D u_height_map;
+
+      out vec4 outColor;
+
+      float hash(vec2 p) {
+        p = fract(p * vec2(123.34, 456.21));
+        p += dot(p, p + 45.32);
+        return fract(p.x * p.y);
+      }
+
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        vec2 u = f * f * (3.0 - 2.0 * f);
+
+        float a = hash(i + vec2(0.0, 0.0));
+        float b = hash(i + vec2(1.0, 0.0));
+        float c = hash(i + vec2(0.0, 1.0));
+        float d = hash(i + vec2(1.0, 1.0));
+
+        return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+      }
+
+      float fbm(vec2 p) {
+        float value = 0.0;
+        float amplitude = 0.5;
+        mat2 rotate = mat2(0.82, -0.57, 0.57, 0.82);
+
+        for (int i = 0; i < 6; i++) {
+          value += amplitude * noise(p);
+          p = rotate * p * 2.03 + vec2(7.13, 3.71);
+          amplitude *= 0.52;
+        }
+
+        return value;
+      }
+
+      float ridge(float v) {
+        return 1.0 - abs(2.0 * v - 1.0);
+      }
+
+      vec2 materialCoord(vec2 uv) {
+        vec2 centered = uv - 0.5;
+        centered.x *= u_resolution.x / u_resolution.y;
+        return centered + 0.5;
+      }
+
+      float materialHeight(vec2 uv) {
+        vec2 coord = materialCoord(uv);
+        vec2 q = coord * 0.72 + vec2(0.13, 0.04);
+        float h0 = texture(u_height_map, q).r;
+        float h1 = texture(u_height_map, q * 1.83 + vec2(0.29, 0.41)).r;
+        float h2 = texture(u_height_map, q * 0.53 + vec2(0.08, 0.22)).r;
+
+        return h0 * 0.74 + h1 * 0.17 + h2 * 0.09;
+      }
+
+      vec3 materialNormal(vec2 uv) {
+        vec2 e = 0.72 / u_resolution.xy;
+        float h = materialHeight(uv);
+        float hx = materialHeight(uv + vec2(e.x, 0.0));
+        float hy = materialHeight(uv + vec2(0.0, e.y));
+
+        return normalize(vec3((h - hx) * 38.0, (h - hy) * 38.0, 1.0));
+      }
+
+      float materialCurvature(vec2 uv) {
+        vec2 e = 0.98 / u_resolution.xy;
+        float h = materialHeight(uv);
+        float hL = materialHeight(uv - vec2(e.x, 0.0));
+        float hR = materialHeight(uv + vec2(e.x, 0.0));
+        float hU = materialHeight(uv + vec2(0.0, e.y));
+        float hD = materialHeight(uv - vec2(0.0, e.y));
+
+        return (hL + hR + hU + hD - h * 4.0);
+      }
+
+      float beamCenter(vec2 uv, vec2 p, float time) {
+        float x = uv.x;
+        float slow = fbm(vec2(x * 1.25 + time * 0.055, 1.8));
+        float local = fbm(vec2(x * 3.55 - time * 0.035, 9.4));
+
+        float base = 0.135 + 0.525 * x;
+        float belly = 0.060 * exp(-pow((x - 0.31) / 0.28, 2.0));
+        float rise = 0.035 * exp(-pow((x - 0.88) / 0.20, 2.0));
+        float bend = (slow - 0.5) * 0.052 + (local - 0.5) * 0.020;
+
+        return base + belly + rise + bend;
+      }
+
+      void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        vec2 p = uv - 0.5;
+        p.x *= u_resolution.x / u_resolution.y;
+
+        float time = u_time * u_motion * 0.28;
+        float center = beamCenter(uv, p, time);
+        float d = uv.y - center;
+
+        float edgeNoise = fbm(vec2(uv.x * 5.9, 4.8) + vec2(time * 0.04, -time * 0.03));
+        float fineEdge = fbm(p * 9.5 + vec2(time * 0.035, -time * 0.025));
+        float upperEdge = 0.112 + (edgeNoise - 0.5) * 0.026 + (fineEdge - 0.5) * 0.010;
+        float lowerEdge = -0.430 + (fbm(vec2(uv.x * 2.1, 13.0)) - 0.5) * 0.040;
+
+        float upperSoft = mix(0.010, 0.030, smoothstep(0.25, 0.70, edgeNoise));
+        float lowerSoft = 0.285;
+        float topCut = 1.0 - smoothstep(upperEdge - upperSoft, upperEdge + upperSoft * 1.55, d);
+        float bottomCut = smoothstep(lowerEdge - lowerSoft, lowerEdge + lowerSoft * 1.35, d);
+        float beamMask = topCut * bottomCut;
+
+        float core = exp(-pow((d + 0.095) / 0.245, 2.0));
+        float centerLift = exp(-pow((uv.x - 0.56) / 0.52, 2.0));
+        float obliqueLift = 0.82 + 0.18 * smoothstep(0.05, 0.92, uv.x);
+        float lightField = clamp(beamMask * (0.10 + 1.08 * core * centerLift) * obliqueLift, 0.0, 1.0);
+        float hotCore = beamMask
+          * exp(-pow((d + 0.092) / 0.132, 2.0))
+          * exp(-pow((uv.x - 0.66) / 0.48, 2.0));
+        float apertureSpark = beamMask
+          * exp(-pow((d + 0.126) / 0.070, 2.0))
+          * exp(-pow((uv.x - 0.60) / 0.38, 2.0));
+        float warmVeil = beamMask
+          * exp(-pow((d + 0.058) / 0.215, 2.0))
+          * exp(-pow((uv.x - 0.58) / 0.64, 2.0));
+        float upperApertureSkin = beamMask
+          * exp(-pow((d - upperEdge + 0.018) / 0.046, 2.0))
+          * smoothstep(0.10, 0.82, uv.x);
+        float upperShadow = smoothstep(upperEdge - 0.012, upperEdge + 0.108, d);
+        float outerContactSkin = exp(-pow((d - upperEdge - 0.020) / 0.078, 2.0))
+          * upperShadow
+          * smoothstep(0.06, 0.78, uv.x);
+        float coolRim = beamMask
+          * exp(-pow((d - upperEdge + 0.078) / 0.086, 2.0))
+          * smoothstep(0.02, 0.70, uv.x);
+        float innerWarmShelf = beamMask
+          * exp(-pow((d - upperEdge + 0.112) / 0.124, 2.0))
+          * smoothstep(0.08, 0.86, uv.x);
+        float lowerBlueVeil = beamMask
+          * exp(-pow((d + 0.318) / 0.205, 2.0))
+          * (0.72 + 0.28 * fbm(p * 2.7 + vec2(5.4, 1.1)));
+        float closeLight = smoothstep(0.10, 0.88, lightField + hotCore * 0.20 + apertureSpark * 0.08);
+
+        float edgeOcclusion = exp(-pow((d - upperEdge) / 0.034, 2.0)) * upperShadow;
+        float contactShadow = exp(-pow((d - upperEdge - 0.014) / 0.060, 2.0)) * upperShadow;
+        float closeOccluder = smoothstep(upperEdge + 0.026, upperEdge + 0.270, d);
+        float occluderBody = closeOccluder
+          * smoothstep(0.02, 0.44, uv.x)
+          * (0.76 + 0.24 * fbm(p * 1.8 + vec2(1.2, 4.1)));
+        float apertureBite = exp(-pow((d - upperEdge - 0.030) / 0.032, 2.0))
+          * smoothstep(0.10, 0.78, uv.x)
+          * smoothstep(0.98, 0.20, uv.y);
+        float lowerCoolReturn = 1.0 - smoothstep(lowerEdge - 0.16, lowerEdge + 0.42, d);
+
+        vec2 materialUv = uv + vec2(time * 0.0012, -time * 0.0008);
+        float height = materialHeight(materialUv);
+        float fineHeight = texture(
+          u_height_map,
+          materialUv * vec2(1.65, 1.82) + vec2(0.37, 0.19)
+        ).r;
+        vec3 normal = materialNormal(materialUv);
+        float curvature = materialCurvature(materialUv);
+        vec3 grazingLight = normalize(vec3(-0.24, 0.44, 0.86));
+        vec3 warmBeamLight = normalize(vec3(-0.18, -0.18, 0.97));
+        float relief = clamp(dot(normal, mix(grazingLight, warmBeamLight, lightField)) * 0.5 + 0.5, 0.0, 1.0);
+        float grain = noise(gl_FragCoord.xy * 0.92 + time * 3.0);
+
+        vec3 coolBase = vec3(0.330, 0.445, 0.480);
+        vec3 coolDeep = vec3(0.105, 0.235, 0.285);
+        vec3 coolPale = vec3(0.555, 0.625, 0.610);
+        vec3 warmLight = vec3(0.815, 0.760, 0.650);
+        vec3 warmPeak = vec3(0.925, 0.850, 0.715);
+        vec3 hotWhite = vec3(1.030, 0.970, 0.830);
+        vec3 penumbraHeat = vec3(0.840, 0.680, 0.470);
+        vec3 veilCream = vec3(0.900, 0.835, 0.680);
+        vec3 apertureWarm = vec3(0.960, 0.780, 0.510);
+        vec3 veilBlue = vec3(0.475, 0.600, 0.600);
+
+        vec3 cool = mix(
+          coolBase,
+          coolDeep,
+          upperShadow * 0.82 + edgeOcclusion * 0.42 + contactShadow * 0.26 + occluderBody * 0.02
+        );
+        cool = mix(cool, coolPale, lowerCoolReturn * 0.32);
+        cool *= 0.95 + 0.10 * fbm(p * 2.2 + vec2(0.7, 1.9));
+
+        vec3 lit = mix(coolPale, warmLight, smoothstep(0.12, 0.78, lightField));
+        lit = mix(lit, warmPeak, 0.235 * smoothstep(0.54, 1.0, core * beamMask));
+        lit = mix(lit, veilCream, 0.145 * smoothstep(0.18, 0.82, warmVeil));
+        lit = mix(lit, apertureWarm, 0.132 * smoothstep(0.10, 0.86, upperApertureSkin + apertureSpark * 0.38));
+        lit = mix(lit, apertureWarm, 0.092 * smoothstep(0.10, 0.88, innerWarmShelf));
+        lit = mix(lit, penumbraHeat, 0.045 * smoothstep(0.14, 0.74, contactShadow + apertureBite));
+        lit = mix(lit, hotWhite, 0.350 * smoothstep(0.34, 0.98, hotCore + apertureSpark * 0.72));
+
+        vec3 color = mix(cool, lit, closeLight);
+        color = mix(color, veilBlue, 0.092 * smoothstep(0.16, 0.76, lowerBlueVeil));
+        color = mix(color, coolDeep, 0.068 * smoothstep(0.14, 0.78, coolRim));
+        color = mix(color, coolDeep, 0.088 * smoothstep(0.08, 0.74, outerContactSkin));
+        color -= edgeOcclusion * vec3(0.018, 0.034, 0.040);
+        color -= contactShadow * vec3(0.022, 0.040, 0.046);
+        color -= apertureBite * vec3(0.014, 0.022, 0.024);
+        color -= occluderBody * vec3(0.006, 0.010, 0.010);
+
+        float materialStrength = mix(0.115, 0.340, lightField);
+        color += (relief - 0.52) * materialStrength;
+        color += (height - 0.52) * mix(0.038, 0.132, lightField);
+        color += (fineHeight - 0.50) * mix(0.022, 0.050, lightField);
+        color += clamp(curvature * 18.0, -0.18, 0.18) * mix(0.052, 0.160, lightField);
+        color += (grain - 0.50) * 0.006;
+
+        float lightRevealsSurface = smoothstep(0.18, 0.86, lightField);
+        color += pow(max(relief - 0.55, 0.0), 1.65) * lightRevealsSurface * 0.062;
+        color += hotCore * vec3(0.040, 0.031, 0.014);
+        color += apertureSpark * vec3(0.030, 0.023, 0.010);
+        color += warmVeil * vec3(0.014, 0.009, 0.001);
+        color += upperApertureSkin * vec3(0.018, 0.010, -0.002);
+        color += innerWarmShelf * vec3(0.016, 0.010, 0.001);
+        color -= outerContactSkin * vec3(0.006, 0.010, 0.010);
+        color -= coolRim * vec3(0.004, 0.007, 0.006);
+
+        float vignette = smoothstep(1.05, 0.16, length((uv - 0.5) * vec2(0.82, 1.04)));
+        color *= mix(0.86, 1.04, vignette);
+        color = pow(max(color, 0.0), vec3(0.94));
+
+        outColor = vec4(color, 1.0);
+      }
+    </script>
+
+    <script>
+      const canvas = document.querySelector("#shader-canvas");
+      const gl = canvas.getContext("webgl2", {
+        antialias: false,
+        depth: false,
+        stencil: false,
+        alpha: false,
+        powerPreference: "high-performance",
+      });
+
+      const prefersReducedMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      );
+
+      function fallback() {
+        const fallbackBackground =
+          "linear-gradient(124deg, #0e1d24 0%, #213d45 38%, #d2c5ae 55%, #789099 78%, #213740 100%)";
+        document.documentElement.style.background = fallbackBackground;
+        document.body.style.background = fallbackBackground;
+        canvas.style.display = "none";
+      }
+
+      if (!gl) {
+        fallback();
+      } else {
+        const vertexSource = document
+          .querySelector("#vertex-shader")
+          .textContent.trimStart();
+        const fragmentSource =
+          document.querySelector("#fragment-shader").textContent.trimStart();
+
+        function compileShader(type, source) {
+          const shader = gl.createShader(type);
+          gl.shaderSource(shader, source);
+          gl.compileShader(shader);
+
+          if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            const info = gl.getShaderInfoLog(shader);
+            gl.deleteShader(shader);
+            throw new Error(info || "Shader compilation failed.");
+          }
+
+          return shader;
+        }
+
+        function hash2(x, y) {
+          const value = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
+          return value - Math.floor(value);
+        }
+
+        function smoothstep(value) {
+          return value * value * (3 - 2 * value);
+        }
+
+        function valueNoise(x, y) {
+          const ix = Math.floor(x);
+          const iy = Math.floor(y);
+          const fx = x - ix;
+          const fy = y - iy;
+          const ux = smoothstep(fx);
+          const uy = smoothstep(fy);
+
+          const a = hash2(ix, iy);
+          const b = hash2(ix + 1, iy);
+          const c = hash2(ix, iy + 1);
+          const d = hash2(ix + 1, iy + 1);
+          const ab = a + (b - a) * ux;
+          const cd = c + (d - c) * ux;
+
+          return ab + (cd - ab) * uy;
+        }
+
+        function fbm2(x, y) {
+          let value = 0;
+          let amplitude = 0.5;
+          let frequency = 1;
+
+          for (let i = 0; i < 5; i += 1) {
+            value += valueNoise(x * frequency, y * frequency) * amplitude;
+            frequency *= 2.07;
+            amplitude *= 0.52;
+          }
+
+          return value;
+        }
+
+        function cellularEdge(x, y) {
+          const ix = Math.floor(x);
+          const iy = Math.floor(y);
+          let nearest = 99;
+          let nextNearest = 99;
+
+          for (let oy = -1; oy <= 1; oy += 1) {
+            for (let ox = -1; ox <= 1; ox += 1) {
+              const px = ix + ox;
+              const py = iy + oy;
+              const cx = px + hash2(px, py);
+              const cy = py + hash2(px + 37.2, py - 19.8);
+              const dx = x - cx;
+              const dy = y - cy;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+
+              if (distance < nearest) {
+                nextNearest = nearest;
+                nearest = distance;
+              } else if (distance < nextNearest) {
+                nextNearest = distance;
+              }
+            }
+          }
+
+          return Math.max(0, 1 - (nextNearest - nearest) * 2.7);
+        }
+
+        function stamp(values, width, height, x, y, radius, strength) {
+          const minX = Math.max(0, Math.floor(x - radius * 2));
+          const maxX = Math.min(width - 1, Math.ceil(x + radius * 2));
+          const minY = Math.max(0, Math.floor(y - radius * 2));
+          const maxY = Math.min(height - 1, Math.ceil(y + radius * 2));
+
+          for (let yy = minY; yy <= maxY; yy += 1) {
+            for (let xx = minX; xx <= maxX; xx += 1) {
+              const dx = xx - x;
+              const dy = yy - y;
+              const falloff = Math.exp(-(dx * dx + dy * dy) / (radius * radius));
+              values[yy * width + xx] += strength * falloff;
+            }
+          }
+        }
+
+        function ovalStamp(
+          values,
+          width,
+          height,
+          x,
+          y,
+          radiusX,
+          radiusY,
+          angle,
+          strength,
+        ) {
+          const reach = Math.max(radiusX, radiusY) * 2.4;
+          const minX = Math.max(0, Math.floor(x - reach));
+          const maxX = Math.min(width - 1, Math.ceil(x + reach));
+          const minY = Math.max(0, Math.floor(y - reach));
+          const maxY = Math.min(height - 1, Math.ceil(y + reach));
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+
+          for (let yy = minY; yy <= maxY; yy += 1) {
+            for (let xx = minX; xx <= maxX; xx += 1) {
+              const dx = xx - x;
+              const dy = yy - y;
+              const rx = (dx * cos + dy * sin) / radiusX;
+              const ry = (-dx * sin + dy * cos) / radiusY;
+              const d2 = rx * rx + ry * ry;
+              const mound = Math.exp(-d2 * 1.25);
+              const shoulder = Math.exp(-Math.pow(Math.sqrt(d2) - 1.05, 2) * 9.0);
+              values[yy * width + xx] += strength * (mound - shoulder * 0.22);
+            }
+          }
+        }
+
+        function pore(values, width, height, x, y, radius, strength) {
+          const minX = Math.max(0, Math.floor(x - radius * 2.8));
+          const maxX = Math.min(width - 1, Math.ceil(x + radius * 2.8));
+          const minY = Math.max(0, Math.floor(y - radius * 2.8));
+          const maxY = Math.min(height - 1, Math.ceil(y + radius * 2.8));
+
+          for (let yy = minY; yy <= maxY; yy += 1) {
+            for (let xx = minX; xx <= maxX; xx += 1) {
+              const dx = (xx - x) / radius;
+              const dy = (yy - y) / radius;
+              const d = Math.sqrt(dx * dx + dy * dy);
+              const pit = Math.exp(-d * d * 1.7);
+              const rim = Math.exp(-Math.pow(d - 1.15, 2) * 12.0);
+              values[yy * width + xx] += strength * (rim * 0.55 - pit);
+            }
+          }
+        }
+
+        function stroke(
+          values,
+          width,
+          height,
+          x,
+          y,
+          angle,
+          length,
+          radius,
+          strength,
+          bend,
+        ) {
+          const steps = Math.max(3, Math.floor(length));
+          let px = x;
+          let py = y;
+          let theta = angle;
+
+          for (let s = 0; s < steps; s += 1) {
+            const t = s / Math.max(1, steps - 1);
+            const taper = Math.sin(Math.PI * t);
+            theta += (hash2(x + s * 13.1, y - s * 7.7) - 0.5) * bend;
+            px += Math.cos(theta);
+            py += Math.sin(theta);
+            stamp(values, width, height, px, py, radius, strength * taper);
+          }
+        }
+
+        function createHeightTexture() {
+          const width = 1024;
+          const height = 2048;
+          const values = new Float32Array(width * height);
+
+          for (let y = 0; y < height; y += 1) {
+            for (let x = 0; x < width; x += 1) {
+              const nx = x / width;
+              const ny = y / height;
+              const warpX = (fbm2(nx * 5.8 + 2.4, ny * 6.2 - 0.7) - 0.5) * 0.070;
+              const warpY = (fbm2(nx * 6.1 - 8.1, ny * 5.4 + 3.6) - 0.5) * 0.060;
+              const mx = nx + warpX;
+              const my = ny + warpY;
+              const granularEdge = Math.pow(cellularEdge(mx * 64.0, my * 84.0), 2.6);
+              const hairlineEdge = Math.pow(cellularEdge(mx * 146.0 + 9.0, my * 132.0 - 4.0), 3.4);
+              const erodedGrain = Math.pow(
+                Math.max(0, fbm2(mx * 74.0 + 11.0, my * 88.0 - 5.0)),
+                1.55,
+              );
+              const baseSurface =
+                0.50 +
+                (fbm2(mx * 3.8, my * 4.1) - 0.5) * 0.030 +
+                (fbm2(mx * 15.0 + 12.8, my * 17.0 + 4.6) - 0.5) * 0.034;
+              const mineralGrain =
+                (fbm2(mx * 46.0 + 5.1, my * 52.0 + 9.7) - 0.5) * 0.050;
+              const mineralRidge =
+                (granularEdge * 0.030 + hairlineEdge * 0.020) *
+                (0.58 + erodedGrain * 0.62);
+              const scrapedPlane =
+                (valueNoise(mx * 26.0 + my * 5.0, my * 62.0 - mx * 3.0) - 0.5) *
+                0.020;
+              const grit = (hash2(x, y) - 0.5) * 0.034;
+
+              values[y * width + x] =
+                baseSurface + mineralGrain + mineralRidge + scrapedPlane + grit;
+            }
+          }
+
+          for (let i = 0; i < 360; i += 1) {
+            const cx = hash2(i, 11.3) * width;
+            const cy = hash2(i, 19.7) * height;
+            const angle = hash2(i, 37.1) * Math.PI * 2;
+            const radiusX = 1.15 + hash2(i, 53.9) * 3.80;
+            const radiusY = 0.45 + hash2(i, 71.2) * 1.45;
+            const sign = hash2(i, 97.4) > 0.45 ? 1 : -1;
+            const strength = sign * (0.002 + hash2(i, 113.8) * 0.007);
+
+            ovalStamp(values, width, height, cx, cy, radiusX, radiusY, angle, strength);
+          }
+
+          for (let i = 0; i < 1750; i += 1) {
+            const cx = hash2(i, 811.4) * width;
+            const cy = hash2(i, 947.2) * height;
+            const angle = hash2(i, 1019.8) * Math.PI * 2;
+            const length = 4 + hash2(i, 1201.5) * 15;
+            const radius = 0.55 + hash2(i, 1307.8) * 0.85;
+            const strength = 0.008 + hash2(i, 1451.6) * 0.018;
+            const bend = 0.085 + hash2(i, 1603.2) * 0.180;
+            const side = hash2(i, 1733.6) > 0.5 ? 1 : -1;
+            const nx = Math.cos(angle + Math.PI * 0.5) * radius * 0.80 * side;
+            const ny = Math.sin(angle + Math.PI * 0.5) * radius * 0.80 * side;
+
+            stroke(values, width, height, cx + nx, cy + ny, angle, length, radius, strength, bend);
+            stroke(
+              values,
+              width,
+              height,
+              cx - nx,
+              cy - ny,
+              angle,
+              length,
+              radius * 0.86,
+              -strength * 0.56,
+              bend,
+            );
+          }
+
+          for (let i = 0; i < 8200; i += 1) {
+            const x = hash2(i, 201.1) * width;
+            const y = hash2(i, 307.7) * height;
+            const radius = 0.45 + hash2(i, 401.3) * 1.45;
+            const strength = 0.006 + hash2(i, 503.9) * 0.026;
+            pore(values, width, height, x, y, radius, strength);
+          }
+
+          for (let i = 0; i < 11000; i += 1) {
+            const x = hash2(i, 607.1) * width;
+            const y = hash2(i, 709.3) * height;
+            const radius = 0.34 + hash2(i, 811.9) * 0.95;
+            const strength = (hash2(i, 919.4) - 0.50) * 0.020;
+            stamp(values, width, height, x, y, radius, strength);
+          }
+
+          const data = new Uint8Array(width * height);
+          let mean = 0;
+
+          for (let i = 0; i < values.length; i += 1) {
+            mean += values[i];
+          }
+
+          mean /= values.length;
+
+          let variance = 0;
+
+          for (let i = 0; i < values.length; i += 1) {
+            const delta = values[i] - mean;
+            variance += delta * delta;
+          }
+
+          const scale = 0.195 / Math.max(0.0001, Math.sqrt(variance / values.length));
+
+          for (let i = 0; i < values.length; i += 1) {
+            const compressed = 0.5 + (values[i] - mean) * scale;
+            const clamped = Math.min(1, Math.max(0, compressed));
+            data[i] = Math.round(clamped * 255);
+          }
+
+          const texture = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, texture);
+          gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.R8,
+            width,
+            height,
+            0,
+            gl.RED,
+            gl.UNSIGNED_BYTE,
+            data,
+          );
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+          return texture;
+        }
+
+        try {
+          const vertexShader = compileShader(gl.VERTEX_SHADER, vertexSource);
+          const fragmentShader = compileShader(
+            gl.FRAGMENT_SHADER,
+            fragmentSource,
+          );
+          const program = gl.createProgram();
+
+          gl.attachShader(program, vertexShader);
+          gl.attachShader(program, fragmentShader);
+          gl.linkProgram(program);
+
+          if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            throw new Error(
+              gl.getProgramInfoLog(program) || "Shader link failed.",
+            );
+          }
+
+          const position = gl.getAttribLocation(program, "position");
+          const resolution = gl.getUniformLocation(program, "u_resolution");
+          const time = gl.getUniformLocation(program, "u_time");
+          const motion = gl.getUniformLocation(program, "u_motion");
+          const heightMap = gl.getUniformLocation(program, "u_height_map");
+          const heightTexture = createHeightTexture();
+
+          const buffer = gl.createBuffer();
+          gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+          gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array([-1, -1, 3, -1, -1, 3]),
+            gl.STATIC_DRAW,
+          );
+
+          const vao = gl.createVertexArray();
+          gl.bindVertexArray(vao);
+          gl.enableVertexAttribArray(position);
+          gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+
+          function resize() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const width = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+            const height = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+
+            if (canvas.width !== width || canvas.height !== height) {
+              canvas.width = width;
+              canvas.height = height;
+              gl.viewport(0, 0, width, height);
+            }
+          }
+
+          let start = performance.now();
+
+          function render(now) {
+            resize();
+            gl.useProgram(program);
+            gl.bindVertexArray(vao);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, heightTexture);
+            gl.uniform1i(heightMap, 0);
+            gl.uniform2f(resolution, canvas.width, canvas.height);
+            gl.uniform1f(time, (now - start) * 0.001);
+            gl.uniform1f(motion, prefersReducedMotion.matches ? 0 : 1);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            requestAnimationFrame(render);
+          }
+
+          requestAnimationFrame(render);
+        } catch (error) {
+          console.error(error);
+          fallback();
+        }
+      }
+    </script>
+  </body>
+</html>

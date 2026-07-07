@@ -1,5 +1,6 @@
+import { Button } from "@otibo/ui";
 import type { Metadata } from "next";
-import { css } from "styled-system/css";
+import styles from "./account-deletion.module.css";
 
 // intent: INV-005 (Legal/legal-pages) — noindex は明示的決定
 // 判断: アカウント削除ページは検索流入可。Google Play データセーフティフォームで URL 提出が必要なページ。
@@ -27,54 +28,18 @@ export default function MedoAccountDeletionPage() {
       <hr />
 
       {/* Google Play 要件 (2): 削除リクエスト導線が目立つ位置に */}
-      <div
-        className={css({
-          p: "6",
-          border: "2px solid",
-          borderColor: "border.default",
-          borderRadius: "md",
-          mb: "8",
-          bg: "bg.surface",
-        })}
-      >
-        <p
-          className={css({
-            fontWeight: "medium",
-            mb: "3",
-            color: "fg.default",
-          })}
-        >
-          メールでアカウント削除を申請する
-        </p>
-        <p
-          className={css({
-            fontSize: "sm",
-            color: "fg.muted",
-            mb: "4",
-            lineHeight: "normal",
-          })}
-        >
+      <div className={styles.requestPanel}>
+        <p className={styles.requestTitle}>メールでアカウント削除を申請する</p>
+        <p className={styles.requestDescription}>
           アプリにログインできない場合、またはアプリ内の削除機能を利用できない場合は、メールで削除を申請できます。
         </p>
-        <a
-          href="mailto:contact@otibo.dev?subject=Medo%20アカウント削除申請"
-          className={css({
-            display: "inline-block",
-            px: "5",
-            py: "3",
-            bg: "fg.default",
-            color: "bg.canvas",
-            borderRadius: "sm",
-            fontSize: "sm",
-            fontWeight: "medium",
-            textDecoration: "none",
-            _hover: {
-              opacity: 0.85,
-            },
-          })}
+        <Button
+          render={
+            <a href="mailto:contact@otibo.dev?subject=Medo%20アカウント削除申請" />
+          }
         >
           削除申請メールを送る
-        </a>
+        </Button>
       </div>
 
       <h2>アカウントを削除する</h2>

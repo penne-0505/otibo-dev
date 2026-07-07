@@ -73,7 +73,14 @@ Use TODO.md as the task source of truth. For Size >= M or Risk >= Medium tasks, 
 
 ## 5. 環境変数の設定(otibo.dev 固有)
 
-法務ページで使用する環境変数を設定します。Server Components がビルド時に読み込むため、`NEXT_PUBLIC_` プレフィックスは不要です。
+Node.js 22 以上を使用してください。`@otibo/ui` の package engine と Cloudflare build baseline を
+同じ条件に固定しています。
+
+`@otibo/ui@0.3.0`は`app/layout.tsx`から`@otibo/ui/styles.css`を一度だけ読み込みます。consumer側の
+Panda CSS preset / codegenは使用しません。サイト固有layoutはCSS Modulesで実装します。
+
+法務ページで使用する環境変数を設定します。Server Components が static export のビルド時に
+読み込むため、`NEXT_PUBLIC_` プレフィックスは不要です。
 
 ### ローカル開発
 
@@ -86,24 +93,41 @@ cp .env.example .env.local
 
 `.env.local` はリポジトリに **絶対にコミットしない**。`.gitignore` で除外済み。
 
-### Cloudflare Pages へのデプロイ(オーナー実施)
+### Cloudflare Workers へのデプロイ
 
-1. Cloudflare Pages でプロジェクトを作成し、GitHub リポジトリを連携する。
-2. **Build settings**:
-   - Build command: `npm run build`
-   - Build output directory: `out`
-   - Root directory: `/`(デフォルト)
-3. **Environment variables**(Settings → Environment variables):
-   - `OWNER_NAME` — 特商法に記載する事業者名(本名)
-   - `OWNER_ADDRESS` — 特商法に記載する住所(バーチャルオフィス等)
-   - `OWNER_PHONE` — 特商法に記載する電話番号
-   - `EFFECTIVE_DATE` — Medo プライバシーポリシー・利用規約の発効日(例: `2026-01-01`)
-   - 変数は Production / Preview の両環境に設定する。
-4. **カスタムドメイン**: `otibo.dev` の A/AAAA レコードを Cloudflare Pages の指示に従って設定する。
-5. デプロイ後、全 7 ページ(/ / /tokushoho / /medo/privacy / /medo/terms / /medo/account-deletion / /sarae / /stash)を通読して実値の反映を確認する。
+> **注意**: `OWNER_NAME` 等は Workers runtime binding ではなく、**ビルド時に静的 HTML へ埋め込む
+> build variable** です。値を変更した場合は再ビルドと再デプロイが必要です。ローカル build では
+> `.env.local`、Cloudflare Builds では Build Variables に同じ値を設定します。
+
+1. **環境変数の設定**: `.env.example` をコピーして `.env.local` を作成し、実値を記入する。
+   ```bash
+   cp .env.example .env.local
+   # .env.local を編集して OWNER_NAME / OWNER_ADDRESS / OWNER_PHONE / EFFECTIVE_DATE を設定する
+   ```
+   `.env.local` はリポジトリに **絶対にコミットしない**。`.gitignore` で除外済み。
+
+2. **ビルド**:
+   ```bash
+   npm run build
+   ```
+   `out/` に静的ファイルが生成される。
+
+3. **Workers Static Assets の dry-run**:
+   ```bash
+   npm run deploy:dry-run
+   ```
+
+4. **デプロイ**:
+   ```bash
+   npm run deploy
+   ```
+   lockfile に固定した Wrangler が `wrangler.jsonc` に従い、`out/` を Workers Static Assets として
+   アップロードする。Worker script、OpenNext adapter、runtime binding は使用しない。
+
+5. デプロイ後、全 7 ページ(`/` / `/tokushoho/` / `/medo/privacy/` / `/medo/terms/` / `/medo/account-deletion/` / `/sarae/` / `/stash/`)を通読して実値の反映を確認する。
 6. `contact@otibo.dev` へテスト送信し、catch-all(Cloudflare Email Routing)で受信できることを確認する。
 
-> **注意**: `/medo/account-deletion` の URL は Google Play データセーフティフォームに提出するため、公開後に変更しない。
+> **注意**: `/medo/account-deletion/` の URL は Google Play データセーフティフォームに提出するため、公開後に変更しない。
 
 ## 7. 検証コマンド
 

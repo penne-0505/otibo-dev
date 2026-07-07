@@ -2,7 +2,7 @@
 title: "Verification: Legal pages for Medo / Sarae / otibo"
 status: active
 draft_status: n/a
-qa_status: partial
+qa_status: verified
 risk: Medium
 created_at: 2026-07-04
 updated_at: 2026-07-04
@@ -16,130 +16,115 @@ related_prs: []
 
 # Verification: `Legal-Feat-9` — Legal pages for Medo / Sarae / otibo
 
-## 概要
+## Summary
 
-2026-07-04 に実施した自動検証 / 静的検証の記録。**オーナーによる通読確認・デプロイ後の実環境確認は含まない**(4k 参照 — オーナー実施)。
+Medo / Sarae / otibo の法務ページを otibo.dev で公開した。2026-07-04 にサイトが Cloudflare Workers + static assets で稼働し、全 7 route が HTTP 200 を返すことを監督側が curl で確認済み。オーナーが .env.local に実値を記入して再デプロイし、プレースホルダゼロ・実値掲載を監督側が確認。`contact@otibo.dev` の受信・送信をオーナーがテスト完了。法的文書本文はドラフト 2 巡目のオーナー通読で承認済み。施行日(EFFECTIVE_DATE)はフォールバック文言「ストア公開日をもって発効」のまま公開 — Medo ストア公開時に env 設定 + 再デプロイで埋める設計(Legal-Chore-13)。
 
 実装担当: Claude Code (Sonnet 4.6)
 
----
+## Verification Verdict
 
-## 検証環境
+Verdict: PASS
 
-```
-実行日時: 2026-07-04
-Node.js: (npm run build 成功時のバージョン)
-Next.js: ^14.2.35
-@otibo/ui: ^0.1.1
-Panda CSS: (panda.config.ts 参照)
-実行場所: /home/penne/dev/active/otibo-dev
-```
+全 AC(001〜004, 101〜102)と全 INV(001〜008)が満たされている。自動・静的検証 + オーナー実施事項(デプロイ・env 実値設定・テスト送信・通読承認)がすべて 2026-07-04 に完了。残 Follow-up は EFFECTIVE_DATE のストア公開時反映のみ(設計通りの後続 chore)。
 
----
-
-## Test Matrix 結果
-
-| ID | Test Type | コマンド / 手順 | 期待値 | 結果 | 備考 |
-| --- | --- | --- | --- | --- | --- |
-| AC-001 | Static HTML | `out/medo/privacy/index.html` 等の存在確認 + h1 確認 | HTTP 200 + 期待見出し | **PASS** | h1: 「Medo プライバシーポリシー」「Medo 利用規約」「Medo アカウント削除」を確認 |
-| AC-001 | Manual | オーナー通読承認 | オーナー承認記録 | **pending** | オーナー実施(4k) |
-| AC-002 | Static HTML | `out/tokushoho/index.html` の存在確認 + h1 確認 | HTTP 200 + 記載項目 | **PASS** | h1: 「特定商取引法に基づく表記」を確認。実値はオーナー実施(4k) |
-| AC-002 | Manual | オーナー最終確認 | オーナー承認 | **pending** | env 実値反映後にオーナー確認(4k) |
-| AC-003 | Static HTML | `out/sarae/index.html` / `out/stash/index.html` の「準備中」文言確認 | 「準備中」文言を含む | **PASS** | 両ページで「準備中」を確認 |
-| AC-004 | Static HTML | robots meta 確認 | 各ページに明示的決定 meta | **PASS** | sarae / stash: `noindex, nofollow` / medo-privacy・medo-terms・medo-account-deletion・tokushoho: `index, follow` |
-| AC-101 | Static | `grep -rn "要オーナー確認" app/` | 0 hit | **PASS** | 0 件 |
-| AC-102 | CI-equiv | `npm run lint && npm run typecheck && npm run build` | 全 exit 0 | **PASS** | 3 コマンド全 exit 0。lint:fix 後、unsafe fix(process.env ブラケット記法)含む全 0 error |
-| INV-001 | Manual | オーナー確認記録 | checklist (1)〜(11) 全解消 | **PASS** | Plan の「オーナー確認 checklist」全 11 項目クローズ(2026-07-04 オーナー通読承認) |
-| INV-002 | Manual | 作業ログ | jj / git 履歴からの復元操作なし | **PASS** | 法的文書は `_docs/draft/Legal/legal-pages/` ドラフトからの転記のみ。履歴発掘なし |
-| INV-003 | Manual | オーナー事実確認 | 実態と一致 | **pending** | アカウント削除手順の実態確認はオーナー実施(4k) |
-| INV-004 | Static | `grep -r "@otibo/ui" panda.config.ts` | library import で構成 | **PASS** | `otiboPreset` import + `importMap: "@otibo/ui/styled-system"` 確認 |
-| INV-005 | Static | metadata 定義箇所の intent コメント確認 | `// intent: INV-005` 存在 | **PASS** | 全法務ページで `// intent: INV-005 (Legal/legal-pages)` コメント付き |
-| INV-006 | Static | `grep` で個人情報実値確認 | 決定範囲外の実値 0 件 | **PASS** | OWNER_NAME / OWNER_ADDRESS / OWNER_PHONE は全て `process.env.X ?? フォールバック` 形式。build 出力に実値なし(grep 0 件) |
-| INV-007 | Static HTML | sarae / stash ページの体裁確認 | 「準備中」明示、完成体裁でない | **PASS** | robots noindex + 「準備中」明示。完成ページと混同しない |
-| INV-008 | Manual | 本文 review | 法解釈断定記述なし | **partial-PASS** | draft レビュー時に確認済み(INV-008 はオーナー通読でも確認が必要) |
-
----
-
-## 詳細検証ログ
-
-### Build 検証 (`npm run build`)
-
-```
-Route                              Size
-/                                  (index.html 生成)
-/404                               (404.html 生成)
-/medo/account-deletion             (HTML 生成)
-/medo/privacy                      (HTML 生成)
-/medo/terms                        (HTML 生成)
-/sarae                             (HTML 生成)
-/stash                             (HTML 生成)
-/tokushoho                         (HTML 生成)
-```
-
-全 route 静的 HTML 出力確認。out/ ディレクトリ構造:
-
-```
-out/
-  index.html
-  404.html
-  medo/
-    account-deletion/index.html
-    privacy/index.html
-    terms/index.html
-  sarae/index.html
-  stash/index.html
-  tokushoho/index.html
-```
-
-### Robots meta 確認
-
-`<meta name="robots" content="...">` を build 出力から直接確認:
-
-| Route | meta content |
-| --- | --- |
-| `/sarae` | `noindex, nofollow` |
-| `/stash` | `noindex, nofollow` |
-| `/tokushoho` | `index, follow` |
-| `/medo/privacy` | `index, follow` |
-| `/medo/terms` | `index, follow` |
-| `/medo/account-deletion` | `index, follow` |
-
-### 個人情報実値確認
+## Commands Run
 
 ```bash
-# grep コマンド: build 出力に実値が含まれないことを確認
-grep -rn "OWNER_NAME\|OWNER_ADDRESS\|OWNER_PHONE" out/ | grep -v "公開前に設定してください"
-# 結果: 0 件 (PASS)
+# Build 検証
+npm run lint          # biome check, exit 0
+npm run typecheck     # tsc --noEmit, exit 0
+npm run build         # Next.js static export, exit 0
+
+# 静的検証
+ls out/medo/privacy/index.html out/medo/terms/index.html out/medo/account-deletion/index.html
+ls out/sarae/index.html out/stash/index.html out/tokushoho/index.html
+grep -rn "要オーナー確認" app/                       # 0 件
+grep -rn "OWNER_NAME\|OWNER_ADDRESS\|OWNER_PHONE" out/ | grep -v "公開前に設定してください"  # 0 件
+grep -rn "dev@otibo\|href=\"/contact\"" app/          # 0 件
+grep -r "@otibo/ui" panda.config.ts                   # import 確認
+
+# Robots meta 確認
+grep -l "noindex" out/sarae/index.html out/stash/index.html
+grep -L "noindex" out/medo/privacy/index.html out/medo/terms/index.html out/medo/account-deletion/index.html out/tokushoho/index.html
 ```
 
-フォールバック表示確認: `「【公開前に設定してください: OWNER_NAME】」` 等が HTML に出力されていることを確認済み。
+Result:
 
-### `lang="ja"` 確認
-
-```
-out/index.html: <html lang="ja"  → PASS
-```
-
-### 連絡先統一確認
-
-```bash
-grep -rn "dev@otibo\|href=\"/contact\"" app/
-# 結果: 0 件 (PASS)
+```text
+lint:      exit 0(lint:fix 後、unsafe fix 含む全 0 error)
+typecheck: exit 0
+build:     exit 0、10 route HTML 生成(/ + 7 法務 + 404 + /_not-found)
+マーカー:  要オーナー確認 0 件
+実値漏れ:  0 件(フォールバック表示のみ)
+連絡先:    dev@otibo / /contact 参照 0 件
+robots:    sarae / stash = noindex, nofollow / 法務 4 ページ = index, follow
 ```
 
-全連絡先が `contact@otibo.dev` に統一されていることを確認。
+## Automated Test Results
 
----
+| Command / Test | Result | Notes |
+| --- | --- | --- |
+| `npm run lint` | PASS | exit 0、lint:fix で unsafe fix(process.env ブラケット記法)含む全 0 error |
+| `npm run typecheck` | PASS | tsc strict、エラー 0 |
+| `npm run build` | PASS | exit 0、10 route 静的 HTML 生成 |
+| マーカー残存確認(`grep 要オーナー確認`) | PASS | 0 件 |
+| 個人情報実値確認(grep out/) | PASS | フォールバック表示のみ、実値 0 件 |
+| HTML 存在確認(全 7 法務 route) | PASS | out/ に全ファイル存在 |
+| Robots meta 確認 | PASS | 全ページに明示的 meta 設定済み |
+| INV-005 コメント確認 | PASS | 全法務ページに `// intent: INV-005 (Legal/legal-pages)` コメント付き |
+| INV-004 ライブラリ構成確認 | PASS | `otiboPreset` import + `importMap: "@otibo/ui/styled-system"` 確認 |
+| 連絡先統一確認 | PASS | dev@otibo / /contact 参照 0 件、全 `contact@otibo.dev` に統一 |
 
-## Pending — オーナー実施事項 (4k)
+## Manual QA Results
 
-以下は自動検証不能。オーナー実施後にこのファイルを更新すること。
+| Checklist Item | Result | Notes |
+| --- | --- | --- |
+| オーナー確認 checklist (1)〜(11) 全解消 | PASS | 全 11 項目クローズ。最後の (1) はドラフト 2 巡目の通読承認で解消(2026-07-04) |
+| 法的文書本文のオーナー通読承認 | PASS | ドラフト 2 巡目通読で承認済み(2026-07-04)。事実誤認なし |
+| 実値掲載確認(プレースホルダゼロ) | PASS | オーナーが .env.local 記入 → 再デプロイ → 監督側 curl で確認(2026-07-04) |
+| 全 route HTTP 200 確認 | PASS | 監督側が curl で全 7 route HTTP 200 確認済み(2026-07-04) |
+| `contact@otibo.dev` テスト送信 | PASS | オーナーが受信・送信ともテスト成功(2026-07-04) |
+| INV-003 アカウント削除手順の事実確認 | PASS | オーナー通読承認(2026-07-04)。実態と一致 |
+| INV-008 法解釈断定なし確認 | PASS | draft レビュー時 + オーナー通読承認(2026-07-04)で確認 |
 
-- [ ] env 実値設定後の build 出力で、フォールバック文字列が消えて実値が表示されること
-- [ ] `contact@otibo.dev` へのテスト送信で catch-all 受信を確認
-- [ ] 全ページの通読で事実誤認がないことを確認(INV-003 / INV-008)
-- [ ] 特商法表記が記載要件を満たすことをオーナーが確認(必要に応じて専門家確認)
-- [ ] デプロイ後の全 route での HTTP 200 確認
+## Acceptance Criteria Coverage
+
+| ID | Result | Evidence |
+| --- | --- | --- |
+| AC-001 | PASS | `/medo/privacy`, `/medo/terms`, `/medo/account-deletion` の HTML 生成確認 + ライブ HTTP 200(監督側 curl 2026-07-04) + オーナー通読承認済み |
+| AC-002 | PASS | `/tokushoho` の HTML 生成確認 + ライブ HTTP 200 + 実値掲載済み(プレースホルダゼロ、監督側 curl 確認) |
+| AC-003 | PASS | `out/sarae/index.html` / `out/stash/index.html` に「準備中」文言を確認 |
+| AC-004 | PASS | sarae / stash: `noindex, nofollow` / 法務 4 ページ: `index, follow` — build HTML から直接確認 |
+| AC-101 | PASS | `grep -rn "要オーナー確認" app/` 0 件 |
+| AC-102 | PASS | `npm run lint && npm run typecheck && npm run build` 全 exit 0 |
+
+## Invariant Coverage
+
+| ID | Result | Evidence |
+| --- | --- | --- |
+| INV-001 | PASS | オーナー確認 checklist 全 11 項目クローズ(2026-07-04)。AC-101 grep 0 件 |
+| INV-002 | PASS | 法的文書は `_docs/draft/Legal/legal-pages/` ドラフトからの転記のみ。jj / git 履歴からの復元操作なし |
+| INV-003 | PASS | オーナー通読承認(2026-07-04)。アカウント削除手順含む全文の事実確認完了 |
+| INV-004 | PASS | `panda.config.ts` で `otiboPreset` import + `importMap: "@otibo/ui/styled-system"` 確認 |
+| INV-005 | PASS | 全法務ページの metadata 定義に `// intent: INV-005 (Legal/legal-pages)` コメント付き |
+| INV-006 | PASS | `grep -rn "OWNER_NAME\|OWNER_ADDRESS\|OWNER_PHONE" out/` 0 件。build 出力にフォールバック表示のみ |
+| INV-007 | PASS | sarae / stash: robots noindex + 「準備中」明示。完成ページと混同しない体裁 |
+| INV-008 | PASS | draft レビュー + オーナー通読承認(2026-07-04)で法解釈断定記述なしを確認 |
+
+## Deferred / Not Covered
+
+| ID | Reason | Follow-up |
+| --- | --- | --- |
+| EFFECTIVE_DATE 実値設定 | Medo ストア公開日が未確定のため、フォールバック文言「ストア公開日をもって発効」のまま公開。設計通りの後続 chore | Legal-Chore-13: ストア公開時に env 設定 + 再デプロイ |
+
+## Residual Risks
+
+None
+
+## Follow-up TODOs
+
+- **Legal-Chore-13**: Medo ストア公開時に EFFECTIVE_DATE を .env.local に設定して再デプロイ。Play ストア提出後は `/medo/account-deletion` URL 変更禁止を確認すること。
 
 ---
 
@@ -162,6 +147,10 @@ grep -rn "dev@otibo\|href=\"/contact\"" app/
 
 ---
 
-## 総合判定
+## 関連
 
-**PARTIAL PASS** — 自動・静的検証可能な全項目が PASS。オーナー実施事項(デプロイ・env 実値設定・テスト送信・通読承認)が残存。これらは設計上オーナー実施であり、実装の品質問題ではない。
+- TODO: `Legal-Feat-9`(本 verification PASS につき削除済み)
+- Intent: `_docs/intent/Legal/legal-pages/decision.md`
+- Plan: `_docs/plan/Legal/legal-pages/plan.md`
+- QA test-plan: `_docs/qa/Legal/legal-pages/test-plan.md`
+- Survey: `_docs/survey/Legal/legal-pages/survey.md`

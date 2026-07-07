@@ -1,0 +1,117 @@
+.page {
+  min-height: 100vh;
+  color: var(--colors-fg);
+  background: var(--colors-bg);
+}
+
+.header,
+.footer {
+  padding: var(--spacing-6) clamp(var(--spacing-6), 5vw, var(--spacing-10));
+  border-color: var(--colors-border-subtle);
+}
+
+.header {
+  border-bottom: 1px solid;
+}
+
+.footer {
+  padding-block: var(--spacing-8);
+  border-top: 1px solid;
+}
+
+.homeLink {
+  font-size: var(--font-sizes-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.footerLink {
+  font-size: var(--font-sizes-xs);
+  text-decoration: none;
+}
+
+.prose {
+  max-width: var(--sizes-narrow);
+  margin-inline: auto;
+  padding: clamp(var(--spacing-10), 6vw, var(--spacing-16))
+    clamp(var(--spacing-6), 5vw, var(--spacing-8));
+  font-size: var(--font-sizes-base);
+  line-height: var(--line-heights-normal);
+}
+
+.prose h1,
+.prose h2 {
+  font-family: var(--fonts-display);
+  font-weight: 500;
+  line-height: var(--line-heights-tight);
+}
+
+.prose h1 {
+  margin: 0 0 var(--spacing-8);
+  font-size: var(--font-sizes-lg);
+}
+
+.prose h2 {
+  margin: var(--spacing-10) 0 var(--spacing-4);
+  font-size: var(--font-sizes-md);
+}
+
+.prose h3 {
+  margin: var(--spacing-8) 0 var(--spacing-3);
+  font-size: var(--font-sizes-base);
+  font-weight: 500;
+  line-height: var(--line-heights-snug);
+}
+
+.prose p,
+.prose ul,
+.prose ol {
+  margin-block: 0 var(--spacing-4);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: var(--spacing-6);
+}
+
+.prose li {
+  margin-bottom: var(--spacing-2);
+}
+
+.prose table {
+  width: 100%;
+  margin-bottom: var(--spacing-6);
+  border-collapse: collapse;
+  font-size: var(--font-sizes-sm);
+  table-layout: fixed;
+}
+
+.prose th,
+.prose td {
+  padding: var(--spacing-2) var(--spacing-4) var(--spacing-2) 0;
+  border-bottom: 1px solid var(--colors-border-subtle);
+  color: inherit;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.prose th {
+  border-bottom-width: 2px;
+  font-weight: 500;
+}
+
+.prose a {
+  color: inherit;
+  text-underline-offset: var(--spacing-1);
+}
+
+.prose hr {
+  margin-block: var(--spacing-8);
+  border: 0;
+  border-top: 1px solid var(--colors-border-subtle);
+}
+
+.prose strong {
+  font-weight: 500;
+}

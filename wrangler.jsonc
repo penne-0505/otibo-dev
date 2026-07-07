@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "otibo-dev-site",
+  "compatibility_date": "2026-07-01",
+
+  // Workers static assets — no worker script needed
+  "assets": {
+    "directory": "./out",
+    "not_found_handling": "404-page"
+  },
+
+  // Custom domain — Cloudflare auto-creates DNS record + TLS cert
+  "routes": [
+    {
+      "pattern": "otibo.dev",
+      "custom_domain": true
+    }
+  ]
+}

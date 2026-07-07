@@ -1,23 +1,22 @@
 @layer reset, base, tokens, recipes, utilities;
 
-/* ambient breathing: hero tagline 用。Intent §11 承認済み新規 register */
-@keyframes ambient-breathing {
-  0%,
-  100% {
-    opacity: 0.94;
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
   }
-  50% {
-    opacity: 1;
+
+  html,
+  body {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
   }
-}
 
-.ambient-breathing {
-  animation: ambient-breathing 4s ease-in-out 1s infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ambient-breathing {
-    animation: none;
-    opacity: 1;
+  body {
+    overflow-x: clip;
+    background: var(--colors-bg);
   }
 }

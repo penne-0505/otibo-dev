@@ -3,12 +3,16 @@ title: "Intent: otibo.dev サイト パーパスと初期スコープ"
 status: active
 draft_status: n/a
 created_at: 2026-07-03
-updated_at: 2026-07-03
+updated_at: 2026-07-04
 references:
   - "_docs/archives/draft/Site/otibo-dev-site-purpose/notes.md"
   - "_docs/intent/App/top-page-initial/decision.md"
   - "_docs/intent/App/scaffold/decision.md"
   - "_docs/intent/App/ui-integration/decision.md"
+  - "_docs/reference/Site/visual-canon/reference.md"
+  - "_docs/guide/Site/visual-canon/usage.md"
+  - "_docs/archives/draft/Site/visual-canon/notes.md"
+  - "_docs/archives/draft/Site/visual-canon-translation/notes.md"
 related_issues: []
 related_prs: []
 ---

@@ -1,0 +1,19 @@
+.requestPanel {
+  margin-bottom: var(--spacing-8);
+  padding: var(--spacing-6);
+  border: 1px solid var(--colors-border);
+  border-radius: var(--radii-md);
+  background: var(--colors-surface);
+}
+
+.requestTitle {
+  margin-bottom: var(--spacing-3);
+  font-weight: 500;
+}
+
+.requestDescription {
+  margin-bottom: var(--spacing-4);
+  color: var(--colors-fg-muted);
+  font-size: var(--font-sizes-sm);
+  line-height: var(--line-heights-normal);
+}
