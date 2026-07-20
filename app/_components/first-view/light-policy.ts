@@ -8,6 +8,24 @@ export const lightDebugModes = {
 export type LightDebugMode =
   (typeof lightDebugModes)[keyof typeof lightDebugModes];
 
+const LIGHT_SCROLL_TRANSITION_SHARE = 0.85;
+const LIGHT_EXIT_WASH_START = 0.74;
+
+export function resolveLightExitWash(scrollProgress: number) {
+  const normalized = Math.min(
+    1,
+    Math.max(
+      0,
+      (scrollProgress - LIGHT_EXIT_WASH_START) / (1 - LIGHT_EXIT_WASH_START),
+    ),
+  );
+  return normalized * normalized * (3 - 2 * normalized);
+}
+
+export function resolveFirstViewWordmarkOpacity(exitWash: number) {
+  return 1 - Math.min(1, Math.max(0, exitWash));
+}
+
 export function resolveLightDebugMode(
   search: string,
   allowDiagnostics: boolean,
@@ -22,14 +40,19 @@ export function resolveLightDebugMode(
   return lightDebugModes.final;
 }
 
-export function shouldRunLightAnimation({
-  contextLost,
-  documentHidden,
+export function resolveLightScrollProgress({
+  containerTop,
+  pinnedTravel,
   reducedMotion,
 }: {
-  contextLost: boolean;
-  documentHidden: boolean;
+  containerTop: number;
+  pinnedTravel: number;
   reducedMotion: boolean;
 }) {
-  return !contextLost && !documentHidden && !reducedMotion;
+  if (reducedMotion) return 0;
+  const transitionTravel = Math.max(
+    1,
+    pinnedTravel * LIGHT_SCROLL_TRANSITION_SHARE,
+  );
+  return Math.min(1, Math.max(0, -containerTop / transitionTravel));
 }

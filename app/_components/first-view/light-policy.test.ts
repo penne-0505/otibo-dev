@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   lightDebugModes,
+  resolveFirstViewWordmarkOpacity,
   resolveLightDebugMode,
-  shouldRunLightAnimation,
+  resolveLightExitWash,
+  resolveLightScrollProgress,
 } from "./light-policy";
 
 describe("resolveLightDebugMode", () => {
@@ -28,22 +30,66 @@ describe("resolveLightDebugMode", () => {
   });
 });
 
-describe("shouldRunLightAnimation", () => {
-  it("runs only with motion allowed in a visible document and live context", () => {
+describe("resolveLightScrollProgress", () => {
+  it.each([
+    { containerTop: 0, expected: 0 },
+    { containerTop: -42.5, expected: 0.5 },
+    { containerTop: -85, expected: 1 },
+  ])("AC-012 maps the pinned interval to $expected", ({
+    containerTop,
+    expected,
+  }) => {
     expect(
-      shouldRunLightAnimation({
-        contextLost: false,
-        documentHidden: false,
+      resolveLightScrollProgress({
+        containerTop,
+        pinnedTravel: 100,
         reducedMotion: false,
       }),
-    ).toBe(true);
+    ).toBe(expected);
+  });
+
+  it("AC-012 holds the completed light state before the pinned interval ends", () => {
+    expect(
+      resolveLightScrollProgress({
+        containerTop: -99,
+        pinnedTravel: 100,
+        reducedMotion: false,
+      }),
+    ).toBe(1);
+  });
+
+  it("INV-016 fixes scroll-linked motion at the initial frame", () => {
+    expect(
+      resolveLightScrollProgress({
+        containerTop: -576,
+        pinnedTravel: 576,
+        reducedMotion: true,
+      }),
+    ).toBe(0);
+  });
+});
+
+describe("shared exit wash", () => {
+  it.each([
+    { expected: 0, progress: 0 },
+    { expected: 0, progress: 0.74 },
+    { expected: 0.5, progress: 0.87 },
+    { expected: 1, progress: 1 },
+  ])("AC-013 resolves progress $progress to wash $expected", ({
+    expected,
+    progress,
+  }) => {
+    expect(resolveLightExitWash(progress)).toBeCloseTo(expected);
   });
 
   it.each([
-    { contextLost: true, documentHidden: false, reducedMotion: false },
-    { contextLost: false, documentHidden: true, reducedMotion: false },
-    { contextLost: false, documentHidden: false, reducedMotion: true },
-  ])("stops continuous frames for $contextLost/$documentHidden/$reducedMotion", (state) => {
-    expect(shouldRunLightAnimation(state)).toBe(false);
+    { exitWash: 0, expected: 1 },
+    { exitWash: 0.5, expected: 0.5 },
+    { exitWash: 1, expected: 0 },
+  ])("AC-014 maps wash $exitWash to wordmark opacity $expected", ({
+    exitWash,
+    expected,
+  }) => {
+    expect(resolveFirstViewWordmarkOpacity(exitWash)).toBeCloseTo(expected);
   });
 });

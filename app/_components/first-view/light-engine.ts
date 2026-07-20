@@ -1,4 +1,9 @@
-import { type LightDebugMode, shouldRunLightAnimation } from "./light-policy";
+import {
+  type LightDebugMode,
+  resolveFirstViewWordmarkOpacity,
+  resolveLightExitWash,
+  resolveLightScrollProgress,
+} from "./light-policy";
 
 const VERTEX_SHADER = `#version 300 es
 precision highp float;
@@ -14,9 +19,11 @@ type Resources = {
   program: WebGLProgram;
   uniforms: {
     debugMode: WebGLUniformLocation;
+    exitWash: WebGLUniformLocation;
     heightMap: WebGLUniformLocation;
+    heightMapSize: WebGLUniformLocation;
     resolution: WebGLUniformLocation;
-    time: WebGLUniformLocation;
+    scrollProgress: WebGLUniformLocation;
   };
   vertexArray: WebGLVertexArrayObject;
 };
@@ -28,6 +35,22 @@ type LightEngineOptions = {
   onFirstFrame: () => void;
   onUnavailable: () => void;
 };
+
+export const HEIGHT_TEXTURE_BYTES_PER_TEXEL = 1;
+
+export function estimateHeightTextureBytes(width: number, height: number) {
+  return width * height * HEIGHT_TEXTURE_BYTES_PER_TEXEL;
+}
+
+export function resolveHeightTextureFormat(
+  gl: Pick<WebGL2RenderingContext, "R8" | "RED" | "UNSIGNED_BYTE">,
+) {
+  return {
+    format: gl.RED,
+    internalFormat: gl.R8,
+    type: gl.UNSIGNED_BYTE,
+  } as const;
+}
 
 function assertResource<T>(resource: T | null, label: string): T {
   if (resource === null)
@@ -70,13 +93,14 @@ class LightEngine {
   readonly #onFailure: (error: unknown) => void;
   readonly #onFirstFrame: () => void;
   readonly #resizeObserver: ResizeObserver;
+  readonly #section: HTMLElement | null;
   #contextLost = false;
   #disposed = false;
-  #elapsedSeconds = 0;
   #firstFrameRendered = false;
   #frameId: number | null = null;
-  #lastFrameTime: number | null = null;
+  #renderCount = 0;
   #resources: Resources | null = null;
+  #scrollProgress = 0;
 
   constructor(
     options: LightEngineOptions,
@@ -92,6 +116,7 @@ class LightEngine {
     this.#onFailure = options.onFailure;
     this.#onFirstFrame = options.onFirstFrame;
     this.#resizeObserver = new ResizeObserver(this.#handleResize);
+    this.#section = options.canvas.closest("section");
   }
 
   start() {
@@ -103,7 +128,10 @@ class LightEngine {
     );
     this.#motionQuery.addEventListener("change", this.#handleMotionChange);
     document.addEventListener("visibilitychange", this.#handleVisibilityChange);
+    window.addEventListener("scroll", this.#handleScroll, { passive: true });
     this.#resizeObserver.observe(this.#canvas);
+    this.#canvas.dataset.scrollEffect = "incidence-00";
+    this.#handleScroll();
     this.#scheduleFrame();
   }
 
@@ -125,6 +153,8 @@ class LightEngine {
       "visibilitychange",
       this.#handleVisibilityChange,
     );
+    window.removeEventListener("scroll", this.#handleScroll);
+    this.#section?.style.removeProperty("--first-view-wordmark-opacity");
     this.#deleteResources();
     this.#heightMap.close();
   }
@@ -167,20 +197,39 @@ class LightEngine {
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 
     const heightTexture = assertResource(gl.createTexture(), "height texture");
+    const maximumTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+    if (
+      this.#heightMap.width > maximumTextureSize ||
+      this.#heightMap.height > maximumTextureSize
+    ) {
+      throw new Error(
+        `Height map ${this.#heightMap.width}x${this.#heightMap.height} exceeds MAX_TEXTURE_SIZE ${maximumTextureSize}.`,
+      );
+    }
     gl.bindTexture(gl.TEXTURE_2D, heightTexture);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    const heightTextureFormat = resolveHeightTextureFormat(gl);
+    // intent: DEC-007 (Site/first-view-light-shader) — retaining only sampled height avoids unused GPU channels.
     gl.texImage2D(
       gl.TEXTURE_2D,
       0,
-      gl.RGBA8,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
+      heightTextureFormat.internalFormat,
+      heightTextureFormat.format,
+      heightTextureFormat.type,
       this.#heightMap,
     );
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    const textureBytes = estimateHeightTextureBytes(
+      this.#heightMap.width,
+      this.#heightMap.height,
+    );
+    this.#canvas.dataset.heightMapSize = `${this.#heightMap.width}x${this.#heightMap.height}`;
+    this.#canvas.dataset.heightTextureBytes = String(textureBytes);
+    this.#canvas.dataset.heightTextureFormat = "R8";
+    this.#canvas.dataset.maxTextureSize = String(maximumTextureSize);
 
     return {
       buffer,
@@ -192,17 +241,25 @@ class LightEngine {
           gl.getUniformLocation(program, "u_debug_mode"),
           "u_debug_mode",
         ),
+        exitWash: assertResource(
+          gl.getUniformLocation(program, "u_exit_wash"),
+          "u_exit_wash",
+        ),
         heightMap: assertResource(
           gl.getUniformLocation(program, "u_height_map"),
           "u_height_map",
+        ),
+        heightMapSize: assertResource(
+          gl.getUniformLocation(program, "u_height_map_size"),
+          "u_height_map_size",
         ),
         resolution: assertResource(
           gl.getUniformLocation(program, "u_resolution"),
           "u_resolution",
         ),
-        time: assertResource(
-          gl.getUniformLocation(program, "u_time"),
-          "u_time",
+        scrollProgress: assertResource(
+          gl.getUniformLocation(program, "u_scroll_progress"),
+          "u_scroll_progress",
         ),
       },
       vertexArray,
@@ -225,7 +282,6 @@ class LightEngine {
   #cancelFrame() {
     if (this.#frameId !== null) cancelAnimationFrame(this.#frameId);
     this.#frameId = null;
-    this.#lastFrameTime = null;
   }
 
   #scheduleFrame() {
@@ -240,24 +296,14 @@ class LightEngine {
     this.#frameId = requestAnimationFrame(this.#renderFrame);
   }
 
-  #renderFrame = (now: number) => {
+  #renderFrame = () => {
     this.#frameId = null;
     const resources = this.#resources;
     if (this.#disposed || this.#contextLost || !resources) return;
 
-    const runsContinuously = shouldRunLightAnimation({
-      contextLost: this.#contextLost,
-      documentHidden: document.visibilityState === "hidden",
-      reducedMotion: this.#motionQuery.matches,
-    });
-    if (runsContinuously && this.#lastFrameTime !== null) {
-      this.#elapsedSeconds += Math.min(
-        0.05,
-        (now - this.#lastFrameTime) * 0.001,
-      );
-    }
-    this.#lastFrameTime = now;
     this.#resizeCanvas();
+    const exitWash = resolveLightExitWash(this.#scrollProgress);
+    const wordmarkOpacity = resolveFirstViewWordmarkOpacity(exitWash);
 
     const gl = this.#gl;
     // biome-ignore lint/correctness/useHookAtTopLevel: WebGLRenderingContext.useProgram is not a React hook.
@@ -266,20 +312,33 @@ class LightEngine {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, resources.heightTexture);
     gl.uniform1i(resources.uniforms.heightMap, 0);
+    gl.uniform2f(
+      resources.uniforms.heightMapSize,
+      this.#heightMap.width,
+      this.#heightMap.height,
+    );
     gl.uniform1i(resources.uniforms.debugMode, this.#debugMode);
+    gl.uniform1f(resources.uniforms.exitWash, exitWash);
     gl.uniform2f(
       resources.uniforms.resolution,
       this.#canvas.width,
       this.#canvas.height,
     );
-    gl.uniform1f(resources.uniforms.time, this.#elapsedSeconds);
+    gl.uniform1f(resources.uniforms.scrollProgress, this.#scrollProgress);
+    this.#canvas.dataset.scrollValue = this.#scrollProgress.toFixed(3);
+    this.#canvas.dataset.exitWash = exitWash.toFixed(3);
+    this.#section?.style.setProperty(
+      "--first-view-wordmark-opacity",
+      wordmarkOpacity.toFixed(4),
+    );
     gl.drawArrays(gl.TRIANGLES, 0, 3);
+    this.#renderCount += 1;
+    this.#canvas.dataset.renderCount = String(this.#renderCount);
 
     if (!this.#firstFrameRendered) {
       this.#firstFrameRendered = true;
       this.#onFirstFrame();
     }
-    if (runsContinuously) this.#scheduleFrame();
   };
 
   #resizeCanvas() {
@@ -292,10 +351,31 @@ class LightEngine {
     this.#gl.viewport(0, 0, width, height);
   }
 
-  #handleResize = () => this.#scheduleFrame();
+  #handleResize = () => {
+    this.#handleScroll();
+    this.#scheduleFrame();
+  };
 
   #handleMotionChange = () => {
     this.#cancelFrame();
+    this.#handleScroll();
+    this.#scheduleFrame();
+  };
+
+  #handleScroll = () => {
+    const study = this.#canvas.closest("section")?.parentElement;
+    const rect = study?.getBoundingClientRect();
+    const range = Math.max(
+      1,
+      (rect?.height ?? window.innerHeight) - window.innerHeight,
+    );
+    const next = resolveLightScrollProgress({
+      containerTop: rect?.top ?? 0,
+      pinnedTravel: range,
+      reducedMotion: this.#motionQuery.matches,
+    });
+    if (Math.abs(next - this.#scrollProgress) < 0.0005) return;
+    this.#scrollProgress = next;
     this.#scheduleFrame();
   };
 
@@ -328,7 +408,7 @@ class LightEngine {
 }
 
 export async function startLightEngine(options: LightEngineOptions) {
-  // intent why-not: INV-004 (Site/first-view-light-shader) — background animation does not request a discrete high-performance GPU.
+  // intent why-not: DEC-002 (Site/first-view-light-shader) — event-driven rendering has no measured need for a discrete high-performance GPU.
   const gl = options.canvas.getContext("webgl2", {
     alpha: false,
     antialias: false,

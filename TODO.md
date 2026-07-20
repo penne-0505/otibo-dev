@@ -2,7 +2,7 @@
 
 ## 0. System Metadata
 
-- **Current Max ID**: `Next ID No: 20` (タスク追加時にインクリメント必須)
+- **Current Max ID**: `Next ID No: 21` (タスク追加時にインクリメント必須)
 - **ID Source of Truth**: このファイルの `Next ID No` 行が、全プロジェクトにおける唯一の ID 発番元である。
 
 ## 1. Task Lifecycle (State Machine)
@@ -110,7 +110,7 @@
 | `Category Refactor` | QA test-plan に behavior-preservation checks を含める。 |
 | Agent workflow / validator / CI / Skill / documentation rule 変更 | QA test-plan に agent misbehavior checks を含める。 |
 
-`Size XS/S` かつ `Risk Low` でも、将来の作業者が未実装と誤認しそうな非対応・制限・省略は intentional omission risk として扱う。その場合は、必須フィールドを増やさず、TODO Description / PR / commit、または必要に応じて Plan Non-Goals / Intent Alternatives に理由を残す。
+`Size XS/S` かつ `Risk Low` でも、将来の作業者が未実装と誤認しそうな非対応・制限・省略は intentional omission risk として扱う。その場合は、必須フィールドを増やさず、TODO Description / PR / commit、または必要に応じて Plan Non-Goals / Intent の DEC（Why / Why not）に理由を残す。
 
 ## 4. Completion Rules
 
@@ -197,7 +197,7 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
 
 1. `Size >= M` なら Plan / Intent / QA が存在することを確認する。
 2. `Risk >= Medium` なら Intent / QA が存在することを確認する。
-3. QA test-plan の Test Matrix が、主要 AC / INV を最低 1 つの確認手段へ割り当てていることを確認する。
+3. QA test-plan の Test Matrix が主要 AC と、存在する場合の INV を最低 1 つの確認手段へ割り当て、影響する DEC の review scope を示していることを確認する。
 4. Dependencies が解決済みか確認する。
 5. 全てクリアした場合のみ `Ready` セクションへ移動する。
 
@@ -254,7 +254,7 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
 - **Goal**: 新規メンバーが onboarding command で初期診断を実行できる。
 - **Acceptance Criteria**:
   - AC-001: command が環境診断を実行し、結果を標準出力に表示する。
-  - AC-002: intent-derived invariant に基づくテストまたは validator が存在する。
+  - AC-002: decision の Why / Change freedom が記録され、必要な場合だけ intent-derived invariant に基づくテストまたは validator が存在する。
 - **Steps**:
   1. [ ] Plan の Scope / Non-Goals を確認する
   2. [ ] QA test-plan の Test Matrix に従って実装と検証を進める
@@ -376,6 +376,31 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   - AC-006: desktop / mobile、reduced motion、semantic structure、keyboard navigationが成立する。
   - AC-007: Next.js static exportとWorkers Static Assets dry-runが成功する。
   - AC-008: オーナーが3秒 / 30秒の体験とproduction visualを承認している。
+  - AC-009: First Viewの00 baselineは、210svhの親区間で同じ表面への光の入射角だけをscroll進捗で変え、Principleと同じ白を保持してから下流contentを見せる。
+  - AC-010: surface whiteへの終盤washは進捗0.74から1.00へ分散し、一度の標準的なwheel入力で色面から全面白へ切り替わらない。
+  - AC-011: First Viewの`otibo`はsurface whiteへのwashと同じ進捗で薄くなり、全面白と同時に見えなくなる。
+  - AC-012: First Viewの光は狭い白芯、暖色の内側光、低強度haloを区別でき、白飛びを広げずに周辺との輝度差を持つ。
+  - AC-013: material detailの比較では光、scroll、wordmarkを固定し、局所的な焦点を加えず、微細法線・微細鏡面・粒径差・微細孔による高周波情報だけを変える。
+  - AC-014: height map解像度は生成式とpixel-spaceの傷・孔を固定して比較した2048x4096を00 baselineへ採用し、本線3000で表示できる。
+  - AC-015: 2048x4096の素材比較は3000を変更せず、3001の紙、3002の石／漆喰、3003の布が、色・光・scroll・wordmarkの差ではなく表面起伏だけで一見して判別できる。
+  - AC-016: 素材比較の第二ラウンドは3003の布を保持し、3001の紙v2は繊維束がパルプ層へ埋まり、3002の石v2は縁取られた円形孔を持たず、3004の砂と3005の砂利は粒子が連続面／個体として読める差を持つ。
+  - AC-017: First Viewは時間経過だけでは変化せず、初期化・scroll・resize・context復帰時だけ同じscroll位置の決定的な像を描画する。
+  - AC-018: 3006は布60%・紙v2 10%・砂30%を周波数帯の役割へ分けて合成し、3007は同じ三素材を同じ比率で純粋に画素加重平均した対照として、共通の光・scroll・wordmark条件で比較できる。
+  - AC-019: 3008は布・紙v2・砂の周期、長繊維、粒という素材同定手掛かりを複数方向へ再配置して中和し、局所的な解像感と複数周波数の情報量を保ちながら特定素材へ同定しにくい第三案として比較できる。
+  - AC-020: 3009は3006の出力分散と0.6 / 0.1 / 0.3比率を保ち、布を低周波、砂を中周波、紙v2を高周波へ限定した強い周波数分担として比較できる。
+  - AC-021: 3009の強い周波数分担を再生成可能なcanonical baselineとして3000へ採用し、3001に元の布、3002に新baselineの比較鏡像だけを残して他variantをactive portから外せる。
+  - AC-022: 新baselineを固定したまま、3003〜3005で低周波carrierの連続位相を周期的な等方carrierへ25%・45%・60%置換し、同じ帯域配分と情報量で布への同定を段階的に弱める3案を操作比較できる。
+  - AC-023: 位相置換25%の3003を再生成可能なcanonical baselineとして3000へ収束し、3001の元の布を維持する。その上で3002はheight map内の微細粒子、3003は静的なpost-shader粒子として、粒子の挿入位置だけを操作比較できる。
+  - AC-024: 3072x6144の非均一microstructureをcanonical baselineとして3000へ採用し、texel基準の法線・曲率と単一channel `R8` texture uploadにより、WQHDで選択した解像感を保ちながらGPU常駐量を18 MiBへ抑え、単一assetの配信上限を満たす。
+  - AC-025: 3000のshader・height map・engine・wordmark・scrollを変更せず、単一の光路距離`t`から半影・Gaussian幅・強度・素材応答を導く弱勾配と強勾配の2案を、shaderだけが異なる比較portで操作確認できる。
+  - AC-026: 強勾配の半影6倍・Gaussian幅3倍を保ち、同じ`t`軸の応答減衰だけを遠端強度0.64・素材応答0.784へ戻した中間案を、3006との差が2係数だけのshader variantとして比較できる。
+  - AC-027: 3007の強幾何・中間応答を固定し、同じ`t * pathGradient`から暗部の遠景teal化・低コントラスト化と光帯境界の短波長・低振幅化を導く案を、material座標と本線3000を変更せず比較できる。
+  - AC-028: 本線3000のshader / height map / engine / policy / wordmarkを不変とし、閾値近傍の暗部構造、detailの光相関偏在、構造従属の微小輝点を複合しない3つのshader-only variantとして30秒比較できる。
+  - AC-029: 本線3000のshader / height map / engine / policy / wordmarkを不変とし、白芯面積と最大輝度を増やさず周囲の素材応答を洗うグレア、閾値近傍構造を残した深い暗部、その複合、意図的な探索端を、3004 / 3006 / 3007 / 3008のshader-only variantとして比較できる。
+  - AC-030: 本線3000のshader / height map / engine / policy / wordmarkを不変とし、解析的な面・有限面光源・半平面遮蔽体から直射と寒色ambientを計算するL1、同一scene parameterへheight-map自己遮蔽だけを加えるL2、同じ直射輝度場の周辺積分からveiling glareだけを加えるL3を、3004 / 3006 / 3007でarchitecture比較できる。
+  - AC-034: 本線3000のbeam mask・光層・色・白飛び・scroll / responsive挙動を不変の比較基準として、同一height mapの法線を既存光場へ接続するLambert、局所roughnessを用いた低強度GGX、ambient-only AO、必要時のみ弱い局所self-shadowを累積checkpointとして比較できる。有限面光源・物理遮蔽物・bloom・最終RGB maskは導入せず、各checkpointは独立workspaceとportで再確認できる。
+  - AC-035: オーナーが採用した3019のshaderを本線3000へbyte-identicalに収束し、height map / engine / policy / wordmarkを変更しない。写真だけを背景とする3020はshader本線へ混ぜず、原本画像と独立workspaceを維持した比較用3001として再確認できる。
+  - AC-036: 3000の光帯の重心・方向・白芯位置を保ちながら、完成RGB同士のmixを廃止し、寒色ambientと暖色direct irradiance、直射可視率、Lambert / GGXを単一のscene-referred radianceへ統合する。height mapはnormal / roughness / ambient visibilityを介してのみ見た目へ作用し、固定scroll位置の決定性、mobile構図、exit washを維持する。
 - **Steps**:
   1. [x] `Site-Enhance-14`のshader-only local baselineを完了する
   2. [x] 4段階それぞれのcontent contractを定義する
@@ -384,9 +409,30 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   5. [ ] responsive / motion / semantic / keyboard behaviorを実装する（`@otibo/ui@0.4.0` primitiveへの組み直しを進行中）
   6. [ ] static build / Workers dry-run / browser QA / owner reviewを実施する
   7. [ ] verificationがPASSになった完成ページだけをdeploy candidateにする
+  8. [x] First Viewのscroll-linked入射光表現を比較し、現状案を詳細調整の00 baselineへ収束する
+  9. [x] First Viewの白飛び面積、グロー、周辺コントラストを一軸比較し、光の輝度分布を収束する
+  10. [ ] 2048x4096のFirst View素材感を、紙v2、孔のない石v2、布、砂、砂利で比較して選択する
+  11. [x] 1024x2048と2048x4096のheight mapを生成式固定で比較し、2048x4096へ収束する
+  12. [x] shaderの時間driftと常時frame loopを廃止し、scroll-linked描画だけへ収束する
+  13. [x] 布60%・紙v2 10%・砂30%の周波数分担blendと純加重平均を3006 / 3007で比較可能にする
+  14. [x] 布・紙v2・砂の識別特徴を中和し、解像感と情報量を保つ3008を比較可能にする
+  15. [x] 3006のぼけ量を基準に、帯域の重なりだけを狭めた強い周波数分担を3009で比較可能にする
+  16. [x] 3009をcanonical generatorから再現可能な3000 baselineへ収束し、比較環境を3001の布と3002の新baselineだけへ整理する
+  17. [x] 新baselineの情報量と周波数分担を保ち、布由来の位相連続性を3段階で弱める案を3003〜3005で比較可能にする
+  18. [x] 位相置換25%を3000へ収束し、3001の布を保持したまま微細粒子のheight-map案とpost-shader案を3002 / 3003で比較可能にする
+  19. [x] 3072x6144のmicrostructure案をR8 textureとして3000へ収束し、canonical再生成、WQHD visual、配信互換性を検証する
+  20. [x] 光路距離`t`による弱勾配・強勾配をshader-only variantとして比較し、オーナー判断後に採否を決める
+  21. [x] 強勾配の幾何を保ち、遠端応答の床だけを上げた中間案を比較し、オーナー判断後に採否を決める
+  22. [x] 中間応答を固定し、暗部の大気参加と光帯境界の細部圧縮を同じ`t`へ同意させた案を比較し、オーナー判断後に採否を決める
+  23. [x] INV-002 / INV-021の適用範囲限定を前提に、閾値近傍の暗部構造、detailの光相関偏在、構造従属の微小輝点を独立variantとして起動・検証する
+  24. [x] INV-020の再解釈を前提に、白芯面積を変えないグレア、深い暗部、複合、探索端をshader-only variantとして起動・検証する
+  25. [x] 手置きの光症状を停止し、有限面光源と半平面遮蔽体を共有するL1 / L2自己遮蔽 / L3計算輝度グレアを3004 / 3006 / 3007で起動・検証する
+  26. [x] 3000の演出的光場を固定し、height由来のLambert / roughness+GGX / ambient-only AO / optional local self-shadowだけを段階的に累積したhybrid checkpointを実装・比較する
+  27. [x] 3019を本線3000へ収束し、写真背景3020を独立した3001として残して最終比較portを整理する
+  28. [x] 3019をチェックポイント保存し、完成RGBの合成をambient + visibility × direct BRDFへ置き換え、desktop / mobile / scroll / debug fieldで検証する
 - **Description**:
   - Context: 旧Products / About / Contact / Footerはshaderとvisual canon確立前の初期実装で、Panda CSS stylesheetも実配信されていなかった。旧構成の修復ではなく、site purposeから下流を再設計する。
-  - Notes: 「First View → principle的な短文 → product紹介 → contact / 所在」を上位情報骨格とする。これは責務と読む順序であり、固定section templateやproduct cardを必須にしない。shader-only状態はproduction deploy禁止。
+  - Notes: 「First View → principle的な短文 → product紹介 → contact / 所在」を上位情報骨格とする。これは責務と読む順序であり、固定section templateやproduct cardを必須にしない。shader-only状態はproduction deploy禁止。First Viewの親区間は線形scrollの210svhを確定値とし、終盤washを進捗0.74〜1.00へ分散する。wordmarkはwashの逆数で薄くし、全面白では残さない。素材baselineは3072x6144の非均一microstructureとtexel基準の法線・曲率へ収束した。GPU textureは単一channel `R8`で保持し、4096x8192案の階層性をWQHDで許容範囲内に保ちながら配信可能な単一assetへ閉じる。光路距離`t`の探索は不採用で閉じ、後続の見入り比較はINV-002 / INV-021の適用範囲限定を前提とする。dynamic range再訪も物理的一貫性を欠くため不採用で閉じる。L1〜L3は局所的なmaterial realismを示した一方で3000の構図を失ったため不採用とした。3000の光場を仮想入射光として固定したhybrid material responseは3019で比較を完了し、オーナー判断により本線3000へ採用した。次段では3019を保全したうえで、構図fieldだけを拘束し、完成RGBのmixをscene-referredなambient / direct radianceへ置き換える。写真背景3020は別方向の価値を持つためshaderへ混ぜず、独立した3001として維持する。
 - **Plan**: _docs/plan/Site/top-page-rebuild/plan.md
 - **Intent**: _docs/intent/Site/top-page-rebuild/decision.md
 - **QA**: _docs/qa/Site/top-page-rebuild/test-plan.md
@@ -417,10 +463,6 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
 - **QA**: None
 - **Verification**: None
 
----
-
-## Ready
-
 ### Legal-Chore-13: [Chore] Medo ストア公開時に EFFECTIVE_DATE を設定し再デプロイ
 
 - **Title**: [Chore] Medo ストア公開時に EFFECTIVE_DATE を設定し再デプロイ
@@ -442,11 +484,17 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   4. [ ] `/medo/account-deletion` の URL が変更されていないことを確認する
 - **Description**:
   - Context: Legal-Feat-9 完了時点で EFFECTIVE_DATE はフォールバック文言「ストア公開日をもって発効」のまま公開。設計通りの後続 chore。
-  - Notes: Play ストア提出後は `/medo/account-deletion` URL の変更禁止(ストア審査要件)。`Size XS` かつ `Risk Low` のため Plan / Intent / QA は不要。
+  - Notes: Medo ストア公開日が確定するまでは着手不能。Play ストア提出後は `/medo/account-deletion` URL の変更禁止(ストア審査要件)。`Size XS` かつ `Risk Low` のため Plan / Intent / QA は不要。
 - **Plan**: None
 - **Intent**: None
 - **QA**: None
 - **Verification**: None
+
+---
+
+## Ready
+
+-
 
 ---
 

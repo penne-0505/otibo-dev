@@ -1,4 +1,5 @@
 .firstView {
+  --first-view-wordmark-opacity: 1;
   --first-view-wordmark: rgb(235 217 180 / 42%);
 
   position: relative;
@@ -49,31 +50,20 @@
 .wordmark {
   position: absolute;
   z-index: 2;
-  left: clamp(
-    var(--spacing-10),
-    8vw,
-    calc(var(--spacing-24) + var(--spacing-10))
-  );
-  top: 56%;
+  right: clamp(var(--spacing-6), 4vw, var(--spacing-16));
+  bottom: clamp(var(--spacing-6), 4vw, var(--spacing-16));
   margin: 0;
   color: var(--first-view-wordmark);
   font-family: var(--fonts-display);
-  font-size: clamp(var(--font-sizes-xl), 4.1vw, var(--font-sizes-5xl));
+  font-size: clamp(var(--font-sizes-lg), 2.25vw, var(--font-sizes-3xl));
   font-weight: 400;
   line-height: var(--line-heights-display);
   letter-spacing: var(--letter-spacings-wider);
   text-transform: lowercase;
-  transform: translateY(-50%);
   text-rendering: geometricprecision;
+  /* intent: DEC-005 (Site/first-view-light-shader) — sharing the wash prevents the signature from outliving the light field. */
+  opacity: var(--first-view-wordmark-opacity);
   user-select: none;
-}
-
-@media (max-aspect-ratio: 3 / 4) {
-  .wordmark {
-    left: 8.8vw;
-    top: 55%;
-    font-size: clamp(var(--font-sizes-xl), 9vw, var(--font-sizes-4xl));
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
