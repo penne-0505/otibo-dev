@@ -29,6 +29,11 @@ const claudeMigration = await read(
 const agentsCleanup = await read(".agents/skills/docs-cleanup/SKILL.md");
 const claudeCleanup = await read(".claude/skills/docs-cleanup/SKILL.md");
 const agentsGuide = await read("AGENTS.md");
+const quickstart = await read("QUICKSTART.md");
+const documentationOperations = await read(
+  "_docs/standards/documentation_operations.md",
+);
+const templateLockExample = await json("docs-template.lock.example.json");
 const intentTemplate = await read("_docs/standards/templates/intent.md");
 const qaTemplate = await read("_docs/standards/templates/qa-test-plan.md");
 const qualityStandard = await read("_docs/standards/quality_assurance.md");
@@ -45,17 +50,17 @@ const whyFirstSkills = [
 const hookEvents = (config) => Object.keys(config.hooks ?? {});
 
 assert(
-  ["SessionStart", "PreToolUse", "Stop"].every((event) =>
+  ["SessionStart", "UserPromptSubmit", "PreToolUse", "Stop"].every((event) =>
     hookEvents(codexHooks).includes(event)
   ),
-  "Codex hooks include SessionStart, PreToolUse, and Stop",
+  "Codex hooks include SessionStart, UserPromptSubmit, PreToolUse, and Stop",
 );
 
 assert(
-  ["SessionStart", "PreToolUse", "Stop"].every((event) =>
+  ["SessionStart", "UserPromptSubmit", "PreToolUse", "Stop"].every((event) =>
     hookEvents(claudeSettings).includes(event)
   ),
-  "Claude hooks include SessionStart, PreToolUse, and Stop",
+  "Claude hooks include SessionStart, UserPromptSubmit, PreToolUse, and Stop",
 );
 
 assert(
@@ -67,6 +72,17 @@ assert(
 assert(
   contains(agentHook, "docs-inventory", "docs-cleanup", "qa-review"),
   "workflow hook reminds agents about inventory, cleanup, and QA review",
+);
+
+assert(
+  contains(
+    agentHook,
+    "plausible counterevidence",
+    "non-local effects",
+    "long-term maintainability",
+    "silently expanding scope",
+  ),
+  "AC-001 AC-002 self-audit covers evidence, system impact, durability, and scope",
 );
 
 assert(
@@ -101,14 +117,18 @@ assert(
   contains(
     agentsMigration,
     "three-way migration",
-    "Lock provenance",
+    "recommended upstream release tag",
+    "full commit SHA",
+    "docs-template.lock.json",
+    "Legacy bootstrap for pre-v1.0.0 repositories",
+    "directly to any selected release `U >= v1.0.0`",
+    "does not need an intermediate",
+    "premature lock",
+    "advancement",
     "bulk schema edits",
     "Completion criterion",
-    "pinned upstream",
-    "Do not use for project-local schema edits",
-    "historical evidence",
   ),
-  "docs-template-migration preserves provenance and staged schema boundaries",
+  "docs-template-migration preserves provenance, legacy bootstrap, and staged schema boundaries",
 );
 
 const migrationSteps = agentsMigration
@@ -121,8 +141,32 @@ assert(
 );
 
 assert(
-  contains(frontmatterValidator, '"intent_schema"', '"qa_schema"'),
-  "frontmatter validator accepts why-first schema markers",
+  templateLockExample.schema === 1 &&
+    templateLockExample.source ===
+      "https://github.com/penne-0505/docs_driven_dev_template.git" &&
+    templateLockExample.revision?.tag === "v1.0.0" &&
+    templateLockExample.revision?.commit ===
+      "REPLACE_WITH_THE_TAGS_FULL_40_CHARACTER_COMMIT_SHA",
+  "template lock example identifies the v1.0.0 release and full-SHA placeholder",
+);
+
+assert(
+  contains(
+    quickstart,
+    "Template の継続更新",
+    "`v1.0.0` より前",
+    "任意の推奨 tag へ直接移行",
+    "`DD_SCOPE_BASE` は導入先 repository 内",
+  ) &&
+    contains(
+      documentationOperations,
+      "Template revision provenance",
+      "compatibility checks",
+      "closure verification",
+      "strict schema migration",
+      "pre-v1.0.0 bootstrap",
+    ),
+  "reader docs separate template provenance, legacy bootstrap, and validator scope",
 );
 
 assert(
@@ -135,8 +179,8 @@ assert(
     agentsGuide,
     "docs-inventory",
     "docs-template-migration",
-    "upstreamのdocs-driven template更新",
-    "`docs-template-migration` skillでthree-way migration",
+    "release tag",
+    "docs-template.lock.json",
     "qa-review",
     "// intent: DEC-00X",
     "// intent-invariant: INV-00X",

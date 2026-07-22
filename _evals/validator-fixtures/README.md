@@ -14,3 +14,7 @@ canonical-path rules while the fixture files remain under `_evals/`.
 
 The QA invalid fixture without `qa_schema` also verifies legacy compatibility:
 legacy plans still require an `INV-*`, while schema v2 accepts `None`.
+
+The front-matter fixtures are copied into temporary canonical Intent / QA paths.
+They verify schema-v2 values and document-type placement, and prove that unknown
+or duplicate keys fail instead of being silently accepted.

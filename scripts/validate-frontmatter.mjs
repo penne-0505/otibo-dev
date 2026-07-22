@@ -61,6 +61,8 @@ const isInArchives = (path) =>
   normalizePath(path).split("/").includes("archives");
 const isDraftPath = (path) => normalizePath(path).split("/").includes("draft");
 const isQaPath = (path) => normalizePath(path).split("/").includes("qa");
+const isIntentPath = (path) =>
+  normalizePath(path).split("/").includes("intent");
 const isInStandards = (path) =>
   normalizePath(path).split("/").includes("standards");
 
@@ -149,6 +151,9 @@ const parseFrontMatter = (src) => {
     }
 
     const [, key, rest = ""] = match;
+    if (Object.hasOwn(attrs, key)) {
+      return { attrs: null, error: `duplicate front matter field: ${key}` };
+    }
     if (rest.trim() !== "") {
       attrs[key] = parseScalar(rest);
       continue;
@@ -259,6 +264,20 @@ const run = async () => {
         fileErrors.push(`risk must be one of ${RISKS.join(", ")}`);
       }
     }
+    if ("intent_schema" in data) {
+      if (!isIntentPath(file)) {
+        fileErrors.push("intent_schema is only allowed in intent documents");
+      } else if (data.intent_schema !== 2) {
+        fileErrors.push("intent_schema must be 2 when provided");
+      }
+    }
+    if ("qa_schema" in data) {
+      if (!isQaPath(file)) {
+        fileErrors.push("qa_schema is only allowed in QA documents");
+      } else if (data.qa_schema !== 2) {
+        fileErrors.push("qa_schema must be 2 when provided");
+      }
+    }
     if (!isIntegerArray(data.related_prs)) {
       fileErrors.push(
         "related_prs must be an array of integers (can be empty)",
@@ -332,7 +351,7 @@ const run = async () => {
         !key.startsWith("stale_exempt") &&
         key !== "stale_extensions"
       ) {
-        fileWarnings.push(`unknown field: ${key}`);
+        fileErrors.push(`unknown field: ${key}`);
       }
     }
 

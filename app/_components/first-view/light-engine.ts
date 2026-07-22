@@ -306,6 +306,7 @@ class LightEngine {
     const wordmarkOpacity = resolveFirstViewWordmarkOpacity(exitWash);
 
     const gl = this.#gl;
+    // biome-ignore suppressions/unused: The targeted rule suppression below prevents a WebGL API false positive.
     // biome-ignore lint/correctness/useHookAtTopLevel: WebGLRenderingContext.useProgram is not a React hook.
     gl.useProgram(resources.program);
     gl.bindVertexArray(resources.vertexArray);

@@ -308,4 +308,3 @@ in-app BrowserのQA tabは0、viewport overrideはreset済みである。
 - 現行Plan / Intent / QAはcheckpoint 50まで反映済みである。
 - verification末尾のcheckpoint 50節は、最新owner reviewより前のvisual evidenceを記録している。
 - 本資料はpaused context snapshotであり、Plan、Intent、QA、Verificationの代替ではない。
-

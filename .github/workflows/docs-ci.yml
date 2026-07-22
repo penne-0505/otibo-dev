@@ -9,6 +9,9 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    env:
+      DD_SCOPE_BASE: a50b827c3bdb6f99d4c29422df73d492ed1b5f5f
+      DD_SCOPE_DIFF_FILTER: ACMR
     steps:
       - name: Checkout
         uses: actions/checkout@v4
