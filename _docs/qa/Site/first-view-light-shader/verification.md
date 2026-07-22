@@ -1489,6 +1489,70 @@ scrollの各像を見たときの物理的整合を優先する。現時点のAC
 - PASS: final `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
 - PASS: `./scripts/check-docs.sh`、targeted `git diff --check`。
 
+## 2026-07-22 checkpoint 69 band-separated local facet direction acceptance
+
+### What changed and why it mattered
+
+- checkpoint 58〜61ではpixel footprint内のlocal slopeをmean / covarianceへ集約し、continuous anisotropic GGX lobeとして評価した。isolated white pointは減ったが、局所facetの差を連続分布へ平均したため、光域全体がぼけた均一な織目として読まれた。
+- covarianceを外してraw fine slopeをfinite sourceへ直接通すと解像感は戻ったが、canonical heightに含まれる雲状の低周波成分までdirect normalへ入り、波・亀裂・暗い線として前景化した。
+- checkpoint 65以降では同じcanonical height近傍からfine slopeとcoarse slopeを別footprintで計測し、fineからcoarseの大部分を差し引いたmicro slopeをdiffuse / specular normalとtangentへ使った。coarse slopeは低いreceiver-shape寄与だけ残し、micro slopeを平均法線やcovariance lobeへ戻していない。
+- diffuse responseはflat receiver cosineを一部保持して溝の黒線化を抑え、specularは同じband-limited facet、anisotropic GGX、finite sourceへ従属させた。detail専用mask、screen-space grain、ridge / wave / carrier、final RGB加算は追加していない。
+- checkpoint 68〜69では広いemitterを暖色側へ調整し、同心coreの固定radianceをsensor飽和へ到達させた。暗部では細部が沈み、中間光で微細な織りが解像し、中心では白へ飽和して細部が消える。Layeredの寒色背景、cream / warmの中間層、斜め構図、意図的な白飛びを同じ像に維持した。
+
+### Owner direction acceptance and artifact
+
+- オーナーはcheckpoint 69について、完成ではないが「これです」「確実にこの方向性」と明示的に評価した。これは最終完成の承認ではなく、今後の反復で保持すべきvisual / causal directionの承認として扱う。
+- checkpoint source: `/home/penne/dev/scratch/temp/otibo-first-view-local-ndf-20260722/checkpoint-69-bandpassed-layered-radiance/light.frag`。
+- checkpoint保存時のsource SHA-256は`a2ceab86612979550983fc5c38aa8b5425b706c5565c994fb20b025792162798`。その後、視覚挙動を変えずDEC-015 / INV-034のintent commentを追加したため、commit時hashは別値になる。
+- Codex in-app Browserのdesktop `1600x900`初期像を実見した。波状の大面、全体ぼけ、孤立白点を主要表現にせず、局所的な織り、暖色中間光、飽和白芯を同時に確認した。
+
+### Guardrail verdict
+
+- **DEC-015 / INV-034: DIRECTION ACCEPTED, NOT FINAL.** fine / coarse separation、direct local-facet response、shared broad / core / sensor pathは今後の反復で保持する。係数は固定しないが、coarse slopeの強い再混入、covariance平均への回帰、detail / focus mask、screen-space grainによる代用はowner再判断なしに行わない。
+- **AC-039: IN PROGRESS.** desktop初期像の方向性はowner accepted。完成判定、mobile / scroll / exit wash、追加のmaterial refinementは残る。
+
+## 2026-07-22 local normal distribution checkpoints 53〜57
+
+### Height and transport diagnosis
+
+- canonical R8 heightは3072x6144、0〜255の全階調を使用し、平均127.48、標準偏差41.97だった。8pixel間引き診断でも隣接差の標準偏差はx方向12.79、y方向15.85で、同値隣接はx 3.53%、y 2.58%に留まる。assetの階調不足ではなく、広域slope、単一平均法線、diffuse平均輝度、receiver-space macro energy、撮像がpixel footprint内の分散を覆う経路を主因と判定した。
+- checkpoint 53ではsensor / glareを外し、pixel footprint内8位置のlocal slopeへBRDFを直接評価した。specular-only像でcanonical heightの繊維束、暗い溝、光源方向へ揃う微細反射が連結して現れ、height自体から局所選択性を作れることを確認した。sourceとcaptureは`/home/penne/dev/scratch/temp/otibo-first-view-local-ndf-20260722/checkpoint-53-runtime-facet-reference`に保全した。
+- checkpoint 54 / 55では平均輝度とlocal varianceを分け、direct diffuseのmicrofacet変動を抑え、固定core radianceを同じdiffuse / specular transportへ通してsensorを復帰した。独立read-only visual reviewは、斜め構図、寒色暗部、暖色照射、ぼけの解消を肯定した一方、明部全体の均一な織目 / 白粒と、白芯の局所集中不足を主要riskとした。
+- checkpoint 56以降ではroughnessを狭め、broad F0を下げず同じmaterial F0を両sourceへ使い、狭いcore、低いdiffuse microfacet weight、aperture transmissionによってfacet応答を中央右へ集中した。8 facet referenceの平均と共分散から4本のsigma normalを構成し、BRDF評価数を半減した。32点source referenceから12方向sample＋解析disk coverageへ軽量化し、最後に実見できたdesktop初期像では白芯が明部全域から中央右へ分離し、周辺織目は低contrast、芯近傍だけ高contrastになった。解析coverageへの置換後も半影のsample段差は再発しなかった。
+- checkpoint 57では出力0倍で残していたglare計算と参照用dead branchを除去した。これはcheckpoint 56と視覚等価なcleanupで、現行source / `out` / checkpoint 57のSHA-256は`65378fd5c2fc32e7619a2eb449a823f5125468ed813e7ce1b956a993842eb004`で一致する。canonical height hashは`48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で不変である。
+
+### Browser boundary and OOM evidence
+
+- final-cleanup前の視覚等価な12 sample / 4 sigma-normal像をCodex in-app Browserの`1600x900`で実見した。canvasは`1585x900`、status `ready`、render count `2`、scroll `0.000`、横overflow `0`だった。captureはtool session内で実見したがcheckpoint fileへ永続化できなかったため、artifact identityの証拠には使わない。
+- 反復中のbrowser tab消失はshader failureと断定しなかった。kernel logは2026-07-22 17:06:43のglobal OOMと、scope外のOpenCodex `bun.exe`（anon RSS約4.97 GB）のkillを記録している。棚卸し時点はRAM 31 GiB中28 GiB使用、free 1.6 GiB、available 3.0 GiB、swapなしだった。scope外のLM Studio / OpenCodex processは停止していない。
+- OOM後はbrowser再試行を中断した。checkpoint 57のmobile `390x844`、scroll中間、wash前、終端white、固定位置時間差captureは未検証である。旧checkpointのresponsive / scroll証拠を新shaderへ流用しない。
+
+### Closure checks and verdict
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: `npm test` — 4 files / 38 tests、`npm run typecheck`。
+- PASS: tracked sourceを対象にした`npx biome check` — 32 files、fixなし。repo-wide `npm run lint`はscope外のuntracked `worktrees/first-view-shader/biome.json`をnested root configurationとして検出して停止したため、そのdirectoryへ変更を加えずtracked filesだけで再実行した。
+- PASS: `npm run build` — canonical height current、static 9 routes、canonical / `out` shader hash一致。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh`、targeted `git diff --check`。
+- **DEC-014: PARTIAL.** runtime 8-facet referenceと4 sigma-normal moment近似、固定radiance、shared diffuse / specular transport、glareなしの順序は実装・desktop目視で確認した。final mobile / scrollと厳密なsource sample convergenceは未検証である。
+- **DEC-011 / DEC-012 / DEC-013: PARTIAL.** receiver-space emitter luminance fieldとbroad height slopeを除去し、Layeredの寒色背景、暖色照射、白芯、sensorをdesktop初期像へ復帰した。responsive / scroll / exit washの新shader目視が残る。
+- **Scoped verdict: PARTIAL — checkpoint 57 is a desktop review candidate, not an adopted final.** AC-038 / AC-039、TODO step 30 / 31は閉じない。残項目はmemory回復後のmobile / scroll / settled QA、source sample convergence、owner採否である。
+
+## 2026-07-22 checkpoint 52 owner rejection and local-NDF reframing
+
+### Owner evidence and diagnosis
+
+- checkpoint 52は、固定emitter radiance、未正規化visible solid angle、単一canonical heightへの追跡可能性を示す構造証拠として保全する。
+- オーナーは現行像を、波状の面的描画、全体のぼけ、低いmicrocontrast、白点noiseにより不採用とした。波状部でmicrocontrastが増えたこと自体も、求める微細さを面表現が覆うため改善とは数えない。
+- source監査では、広いsample step由来のslope / tangent、receiver-space macro luminance、単一平均法線、core diffuseの大きな平均輝度、glareとsensor clipが局所法線分布を失わせる経路を確認した。
+
+### Decision and next verification boundary
+
+- **DEC-014: PLANNED.** sensor / glareなしのruntime multi-tap referenceで、pixel footprint内の複数法線へ同じincident radianceのBRDFを直接評価する。成立後に限りcompact moment表現を検討する。
+- **AC-038 / AC-039: IN PROGRESS.** checkpoint 52の過去の内部PASSはowner visual acceptanceへ昇格しない。AC-038とTODO step 30は未完了のまま、AC-039とstep 31を追加した。
+- **Scoped verdict: PARTIAL.** 現時点では実装前のreframingとQA boundaryだけを同期した。runtime reference、source convergence、compact近似、sensor / macro再統合の証拠は未取得である。
+
 ## 2026-07-22 fixed-emitter solid-angle checkpoint 52
 
 ### Root cause and implementation

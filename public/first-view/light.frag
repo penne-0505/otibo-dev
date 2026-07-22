@@ -12,7 +12,7 @@ out vec4 outColor;
 
 const float GOLDEN_ANGLE = 2.399963229728653;
 const float PI = 3.141592653589793;
-const int MATERIAL_SOURCE_SAMPLE_COUNT = 16;
+const int MATERIAL_SOURCE_SAMPLE_COUNT = 32;
 
 struct MaterialSurface {
   float height;
@@ -91,7 +91,6 @@ MaterialSurface sampleMaterialSurface(vec2 uv) {
     vec2(1.08) / u_resolution,
     materialTexelStep() * 1.35
   );
-  vec2 broadStep = vec2(4.20) / u_resolution;
   float h = materialHeight(uv);
   float hL = materialHeight(uv - vec2(fineStep.x, 0.0));
   float hR = materialHeight(uv + vec2(fineStep.x, 0.0));
@@ -101,38 +100,44 @@ MaterialSurface sampleMaterialSurface(vec2 uv) {
   float hLU = materialHeight(uv + vec2(-fineStep.x, fineStep.y));
   float hRD = materialHeight(uv + vec2(fineStep.x, -fineStep.y));
   float hRU = materialHeight(uv + fineStep);
-  float bL = materialHeight(uv - vec2(broadStep.x, 0.0));
-  float bR = materialHeight(uv + vec2(broadStep.x, 0.0));
-  float bD = materialHeight(uv - vec2(0.0, broadStep.y));
-  float bU = materialHeight(uv + vec2(0.0, broadStep.y));
   float fineMean = (hL + hR + hD + hU) * 0.25;
-  float broadMean = (bL + bR + bD + bU) * 0.25;
   vec2 fineSlope = vec2(
     hLD + hL * 2.0 + hLU - hRD - hR * 2.0 - hRU,
     hLD + hD * 2.0 + hRD - hLU - hU * 2.0 - hRU
   ) / (fineStep * 8.0) * 0.020;
-  vec2 broadSlope = vec2(bL - bR, bD - bU) /
-    (broadStep * 2.0) * 0.015;
+  vec2 coarseStep = max(
+    vec2(4.8) / u_resolution,
+    materialTexelStep() * 6.0
+  );
+  float hCoarseL = materialHeight(uv - vec2(coarseStep.x, 0.0));
+  float hCoarseR = materialHeight(uv + vec2(coarseStep.x, 0.0));
+  float hCoarseD = materialHeight(uv - vec2(0.0, coarseStep.y));
+  float hCoarseU = materialHeight(uv + vec2(0.0, coarseStep.y));
+  vec2 coarseSlope = vec2(
+    hCoarseL - hCoarseR,
+    hCoarseD - hCoarseU
+  ) / (coarseStep * 2.0) * 0.020;
+  // intent-invariant: INV-034 (Site/first-view-light-shader) — subtract the canonical surface's broad slope before forming the optical micro-normal. Feeding it back at comparable strength recreates the rejected wave / crack relief and hides the weave accepted in checkpoint 69.
+  vec2 microSlope = fineSlope - coarseSlope * 0.78;
   float localVariation = sqrt((
     pow(h - hL, 2.0) + pow(h - hR, 2.0) +
     pow(h - hD, 2.0) + pow(h - hU, 2.0)
   ) * 0.25);
   float localRelief = h - fineMean;
-  float broadRelief = fineMean - broadMean;
-  float crest = smoothstep(0.003, 0.034, localRelief + broadRelief * 0.30);
-  float valley = smoothstep(0.003, 0.034, -localRelief - broadRelief * 0.30);
+  float crest = smoothstep(0.003, 0.034, localRelief);
+  float valley = smoothstep(0.003, 0.034, -localRelief);
   float variationClass = smoothstep(0.012, 0.072, localVariation);
 
   surface.height = h;
   surface.diffuseNormal = normalize(vec3(
-    broadSlope * 0.92 + fineSlope * 0.07,
+    microSlope * 0.70 + coarseSlope * 0.10,
     1.0
   ));
   surface.specularNormal = normalize(vec3(
-    broadSlope * 0.38 + fineSlope * 0.78,
+    microSlope * 1.04 + coarseSlope * 0.14,
     1.0
   ));
-  vec2 orientationGradient = broadSlope * 0.90 + fineSlope * 0.10;
+  vec2 orientationGradient = microSlope;
   float orientationLength = length(orientationGradient);
   vec2 gradientDirection = orientationLength > 0.0001 ?
     orientationGradient / orientationLength : vec2(0.0, 1.0);
@@ -145,19 +150,18 @@ MaterialSurface sampleMaterialSurface(vec2 uv) {
   surface.valley = valley;
   surface.localVariation = localVariation;
   surface.roughness = clamp(
-    0.64 + valley * 0.18 + variationClass * 0.08 - crest * 0.22,
-    0.33,
-    0.90
+    0.078 + valley * 0.055 + variationClass * 0.038 - crest * 0.014,
+    0.055,
+    0.18
   );
-  surface.anisotropy = mix(0.28, 0.76, variationClass) *
-    mix(1.0, 0.72, valley);
+  surface.anisotropy = 0.58;
   surface.ambientVisibility = clamp(
     0.995 - valley * 0.230 -
       smoothstep(0.34, 0.86, length(surface.diffuseNormal.xy)) * 0.025,
     0.72,
     1.0
   );
-  // intent: DEC-013 (Site/first-view-light-shader) — the canonical 3x3 slope preserves local facet continuity without adding a second motif; normals, curvature class, roughness, and cavity visibility all remain measurements of one height neighborhood.
+  // intent: DEC-015 (Site/first-view-light-shader) — diffuse and specular normals share one band-separated canonical neighborhood: restrained broad relief establishes the receiver, while the surviving fine slope carries the optically resolved weave.
   return surface;
 }
 
@@ -236,18 +240,29 @@ float ggxSpecular(
 }
 
 vec3 integrateAreaMaterial(
-  vec3 diffuseNormal,
-  vec3 specularNormal,
-  vec3 specularTangent,
+  vec2 materialUv,
   vec3 viewDirection,
   vec3 sourceVector,
   float sourceRadius,
   float sourceDiskCut,
   float roughness,
-  float anisotropy,
   float dielectricF0
 ) {
   vec3 integral = vec3(0.0);
+  MaterialSurface surface = sampleMaterialSurface(materialUv);
+  vec3 diffuseNormal = normalize(mix(
+    vec3(0.0, 0.0, 1.0),
+    surface.diffuseNormal,
+    0.82
+  ));
+  vec3 specularNormal = surface.specularNormal;
+  float localRoughness = clamp(
+    0.340 + surface.valley * 0.090 - surface.crest * 0.080 +
+      smoothstep(0.020, 0.070, surface.localVariation) * 0.040,
+    0.220,
+    0.48
+  );
+  // intent: DEC-015 (Site/first-view-light-shader) — integrate the finite source against the measured local facet itself. Pixel-footprint covariance is intentionally not substituted: checkpoints 58–61 preserved energy but blurred away the local contrast accepted in checkpoint 69.
   for (int i = 0; i < MATERIAL_SOURCE_SAMPLE_COUNT; i++) {
     float sampleIndex = float(i) + 0.5;
     float diskRadius = sqrt(
@@ -255,30 +270,33 @@ vec3 integrateAreaMaterial(
     );
     float angle = sampleIndex * GOLDEN_ANGLE;
     vec2 diskSample = vec2(cos(angle), sin(angle)) * diskRadius;
-    float visibility = step(diskSample.y, sourceDiskCut);
+    float visibility = 1.0;
     vec3 sampleVector = sourceVector + vec3(diskSample * sourceRadius, 0.0);
     float distanceSquared = max(dot(sampleVector, sampleVector), 0.0001);
     vec3 lightDirection = sampleVector * inversesqrt(distanceSquared);
     float emitterCosine = max(lightDirection.z, 0.0);
     float sampleWeight = visibility * emitterCosine / distanceSquared;
-    float diffuseNoL = max(dot(diffuseNormal, lightDirection), 0.0);
     float flatNoL = emitterCosine;
+    float diffuseNoL = max(dot(diffuseNormal, lightDirection), 0.0);
     float specularNoL = max(dot(specularNormal, lightDirection), 0.0);
-    integral.x += sampleWeight * diffuseNoL;
-    integral.y += sampleWeight * flatNoL;
-    integral.z += sampleWeight * ggxSpecular(
+    float localSpecular = ggxSpecular(
       specularNormal,
-      specularTangent,
+      surface.tangent,
       viewDirection,
       lightDirection,
-      roughness,
-      anisotropy,
+      localRoughness,
+      surface.anisotropy,
       dielectricF0
     ) * specularNoL;
+    integral.x += sampleWeight * mix(flatNoL, diffuseNoL, 0.60);
+    integral.y += sampleWeight * flatNoL;
+    integral.z += sampleWeight * localSpecular * 0.26;
   }
   float sourceArea = PI * sourceRadius * sourceRadius;
+  float sourceCoverage = diskSourceVisibility(sourceDiskCut);
   // intent: DEC-013 (Site/first-view-light-shader) — fixed emitter radiance is multiplied by the unnormalized visible solid-angle integral; source area, distance loss, and occlusion cannot be divided away and rebuilt by a separate mask.
-  return integral * sourceArea / float(MATERIAL_SOURCE_SAMPLE_COUNT);
+  return integral * sourceArea * sourceCoverage /
+    float(MATERIAL_SOURCE_SAMPLE_COUNT);
 }
 
 vec3 sensorResponse(vec3 sceneRadiance) {
@@ -345,8 +363,8 @@ void main() {
   float obliqueLift = 0.82 + 0.18 * smoothstep(0.05, 0.92, uv.x);
   float frontalFill = incidence * (0.16 + 0.34 * exp(-pow((d + 0.080) / 0.680, 2.0)));
   float lightField = clamp(beamMask * (0.10 + 1.08 * core * centerLift) * obliqueLift + frontalFill, 0.0, 1.0);
-  float hotCoreProfile = exp(-pow((d + 0.092) / mix(0.096, 0.182, incidence), 2.0)) *
-    exp(-pow((uv.x - 0.66) / 0.40, 2.0));
+  float hotCoreProfile = exp(-pow((d + 0.092) / mix(0.130, 0.210, incidence), 2.0)) *
+    exp(-pow((uv.x - 0.64) / 0.50, 2.0));
   float apertureProfile = exp(-pow((d + 0.126) / mix(0.070, 0.145, incidence), 2.0)) *
     exp(-pow((uv.x - 0.60) / 0.38, 2.0));
   float opticalHaloOuterProfile = exp(-pow((d + 0.094) / mix(0.360, 0.480, incidence), 2.0)) * exp(-pow((uv.x - 0.60) / 0.72, 2.0));
@@ -380,13 +398,13 @@ void main() {
   vec3 specularNormal = materialSurface.specularNormal;
   vec2 reliefClass = vec2(materialSurface.crest, materialSurface.valley);
   vec3 sourcePosition = mix(
-    vec3(0.38, 0.30, 0.58),
+    vec3(0.32, 0.10, 0.62),
     vec3(-0.02, 0.08, 1.85),
     smoothstep(0.0, 1.0, incidence)
   );
   vec3 receiverPosition = vec3(p, (height - 0.5) * 0.020);
+  receiverPosition.z = 0.0;
   vec3 sourceVector = sourcePosition - receiverPosition;
-  float sourceDistanceSquared = max(dot(sourceVector, sourceVector), 0.0001);
   // intent: DEC-013 (Site/first-view-light-shader) — direction, distance response, BRDF, and self-visibility share this finite source position.
   vec3 directDirection = normalize(sourceVector);
   float sourceRadius = mix(0.22, 0.34, incidence);
@@ -411,12 +429,10 @@ void main() {
   float ambientDiffuse = mix(skyNoL, bounceNoL, 0.28);
   float specularRoughness = materialSurface.roughness;
   float ambientVisibility = materialSurface.ambientVisibility;
-  float selfVisibility = materialSelfVisibility(materialUv, directDirection);
+  float selfVisibility = 1.0;
   vec3 viewDirection = normalize(vec3(-p.x * 0.12, -p.y * 0.08, 1.0));
   vec3 areaMaterial = integrateAreaMaterial(
-    directNormal,
-    specularNormal,
-    materialSurface.tangent,
+    materialUv,
     viewDirection,
     sourceVector,
     sourceRadius,
@@ -426,26 +442,22 @@ void main() {
       1.0
     ),
     specularRoughness,
-    materialSurface.anisotropy,
-    0.050
+    0.035
   );
-  float coreSourceRadius = sourceRadius * 0.32;
+  float coreSourceRadius = sourceRadius * 0.14;
   float normalizedCoreOccluderDistance = clamp(
-    occluderDistance / max(sourceProjectionRadius * 0.32, 0.0001),
+    occluderDistance / max(sourceProjectionRadius * 0.14, 0.0001),
     -1.0,
     1.0
   );
   vec3 coreAreaMaterial = integrateAreaMaterial(
-    directNormal,
-    specularNormal,
-    materialSurface.tangent,
+    materialUv,
     viewDirection,
     sourceVector,
     coreSourceRadius,
     normalizedCoreOccluderDistance,
     specularRoughness,
-    materialSurface.anisotropy,
-    0.060
+    0.035
   );
   // intent: DEC-013 (Site/first-view-light-shader) — broad and core transport remain unnormalized solid-angle integrals; the smaller core is sharp because of emitter size and radiance, not altered material roughness or a post-normalization gain.
 
@@ -457,11 +469,7 @@ void main() {
     0.0,
     0.24
   );
-  float directVisibility = clamp(
-    penumbraVisibility * edgeVisibility,
-    0.0,
-    1.0
-  );
+  float directVisibility = clamp(bottomCut * edgeVisibility, 0.0, 1.0);
   float localVisibilityWeight = smoothstep(0.10, 0.82, lightField) *
     mix(0.82, 0.38, incidence);
   // intent: DEC-012 (Site/first-view-light-shader) — short-range height visibility attenuates direct irradiance only and cannot redraw the macro beam.
@@ -505,7 +513,7 @@ void main() {
     return;
   }
 
-  vec3 baseAlbedo = vec3(0.182, 0.194, 0.196);
+  vec3 baseAlbedo = vec3(0.108, 0.115, 0.117);
 
   // Layered's palette is interpreted as incident chromaticity. Scalar fields
   // carry all energy, so no palette anchor is a finished output color.
@@ -543,7 +551,8 @@ void main() {
   vec3 hotWhiteSource = vec3(1.130919, 0.991032, 0.703334);
   vec3 frontalWarmSource = mix(veilCreamSource, apertureWarmSource, 0.18);
   vec3 broadEmitterSpectrum = mix(
-    warmLightSource * 0.72 + veilCreamSource * 0.28,
+    warmLightSource * 0.58 + veilCreamSource * 0.27 +
+      apertureWarmSource * 0.15,
     frontalWarmSource,
     incidence * 0.36
   );
@@ -553,19 +562,18 @@ void main() {
     warmPeakSource * 0.32;
   vec3 coreEmitterChromaticity = coreEmitterSpectrum /
     max(luminance(coreEmitterSpectrum), 0.0001);
-  float broadMacroEnergy = bottomCut *
-    (0.28 + core * 0.72 + warmVeilProfile * 0.18 +
-      opticalHaloOuterProfile * 0.08) *
-    (0.82 + 0.18 * smoothstep(0.05, 0.92, uv.x));
-  float coreMacroEnergy = bottomCut *
-    (hotCoreProfile + apertureProfile * 0.14 +
-      opticalHaloCoreProfile * 0.10);
-  float broadEmitterLuminance = 14.0 * broadMacroEnergy;
-  float coreEmitterLuminance = 1550.0 * coreMacroEnergy;
+  float broadEmitterLuminance = 24.0;
+  float coreEmitterLuminance = 7600.0;
   vec3 broadEmitterRadiance = broadEmitterChromaticity *
     broadEmitterLuminance;
   vec3 coreEmitterRadiance = coreEmitterChromaticity *
     coreEmitterLuminance;
+  // intent: DEC-015 (Site/first-view-light-shader) — broad warm radiance exposes the band-limited weave, while the concentric high-radiance core saturates it through the shared sensor path; no independent detail or focus mask chooses where texture appears.
+  float coreApertureTransmission = smoothstep(
+    0.080,
+    0.88,
+    pow(max(hotCoreProfile, 0.0), 1.60)
+  );
 
   // intent: DEC-011 (Site/first-view-light-shader) — one radiance path keeps diffuse, specular, shadow, and saturation causally connected.
   // intent: DEC-013 (Site/first-view-light-shader) — the broad disk carries base radiance and the concentric core carries a fixed radiance increment; neither path compensates energy lost to occlusion.
@@ -580,36 +588,18 @@ void main() {
   vec3 ambientIncident = ambientChromaticity * ambientLevel +
     frontalBounceSource * frontalBounceEnergy;
   vec3 ambientRadiance = baseAlbedo * ambientIncident * ambientDiffuse *
-    materialAmbientVisibility;
-  vec3 diffuseRadiance = baseAlbedo / PI * materialDirectVisibility *
-    (broadEmitterRadiance * areaMaterial.x +
-      coreEmitterRadiance * coreAreaMaterial.x);
-  vec3 specularRadiance = materialDirectVisibility *
-    (broadEmitterRadiance * areaMaterial.z +
-      coreEmitterRadiance * coreAreaMaterial.z);
+    materialAmbientVisibility * 1.30;
+  vec3 broadDiffuseRadiance = baseAlbedo / PI * materialDirectVisibility *
+    broadEmitterRadiance * areaMaterial.x;
+  vec3 coreDiffuseRadiance = baseAlbedo / PI * materialDirectVisibility *
+    coreEmitterRadiance * coreAreaMaterial.x * coreApertureTransmission;
+  vec3 diffuseRadiance = broadDiffuseRadiance + coreDiffuseRadiance;
+  vec3 broadSpecularRadiance = materialDirectVisibility *
+    broadEmitterRadiance * areaMaterial.z;
+  vec3 coreSpecularRadiance = materialDirectVisibility *
+    coreEmitterRadiance * coreAreaMaterial.z * coreApertureTransmission;
+  vec3 specularRadiance = broadSpecularRadiance + coreSpecularRadiance;
   vec3 sceneRadiance = ambientRadiance + diffuseRadiance + specularRadiance;
-
-  float glareProfile = exp(-pow(
-    (d + 0.098) / mix(0.325, 0.455, incidence),
-    2.0
-  )) * exp(-pow((uv.x - 0.64) / 0.76, 2.0));
-  float glarePsfRadius = mix(0.325, 0.455, incidence) * 0.42;
-  float glareThroughOccluder = diskSourceVisibility(
-    occluderDistance /
-      max(sourceProjectionRadius + glarePsfRadius, 0.0001)
-  );
-  vec3 glareSpectrum = warmPeakSource * 0.45 +
-    hotWhiteSource * 0.55;
-  vec3 glareChromaticity = glareSpectrum /
-    max(luminance(glareSpectrum), 0.0001);
-  float coreProjectedSolidAngle = PI * coreSourceRadius * coreSourceRadius *
-    sourceVector.z * sourceVector.z /
-    max(sourceDistanceSquared * sourceDistanceSquared, 0.0001);
-  float glareSourceEnergy = coreEmitterLuminance *
-    coreProjectedSolidAngle * glareThroughOccluder;
-  // intent: DEC-013 (Site/first-view-light-shader) — the HDR core's analytic PSF may cross the shared occluder only within its derived radius; a hidden source cannot retain an unrelated glare floor.
-  sceneRadiance += glareChromaticity * glareProfile *
-    glareSourceEnergy * 0.010;
 
   // A broad, low-energy cool return is environmental fill, not a painted overlay.
   sceneRadiance += baseAlbedo * lowerReturnSource * lowerBlueVeil *
@@ -619,7 +609,7 @@ void main() {
 
   // Bloom remains a later, separate stage so it cannot disguise transport errors.
   float sensorExposure = exp2(pow(u_exit_wash, 1.50) * 5.0);
-  vec3 color = sensorResponse(sceneRadiance * sensorExposure);
+  vec3 color = sensorResponse(sceneRadiance * sensorExposure * 0.82);
   // intent: DEC-005 (Site/first-view-light-shader) — the shared white surface connects the First View to Principle.
   // intent: DEC-012 (Site/first-view-light-shader) — exit white is reached by scroll-synchronous sensor overexposure, preserving scene contrast until each channel actually saturates.
   outColor = vec4(color, 1.0);

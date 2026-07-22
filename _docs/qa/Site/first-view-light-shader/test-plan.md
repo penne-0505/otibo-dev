@@ -87,6 +87,7 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - AC-036: 3019をチェックポイントとして保全し、3000の光帯の重心・方向・白芯位置を維持したまま、完成RGBのmixをambient + visibility × direct BRDFへ置き換える。height mapはnormal / roughness / ambient visibilityだけを介し、固定scroll位置の決定性、desktop / mobile、exit washを維持する。
 - AC-037: Layeredの寒色背景、cream色の中間光、暖色高輝度域、白芯への色軌跡を、完成RGBではなく正規化した入射chromaticityとsensor responseから再構成する。height mapはnormal / roughness / ambient visibility / bounded direct self-visibilityだけを介してradianceへ作用し、teal-green偏り、赤橙の帯、白芯への唐突な遷移を解消する。macro構図、固定scroll位置の決定性、desktop / mobile、exit washを維持する。
 - AC-038: DEC-012のcheckpointを保全し、macro field内の半影、fragmentごとの入射方向、height-mapのdirect response、高輝度radiance由来glareを一つの仮想面光源と遮蔽物へ接続する。同心の広い面光源 / 小coreをsample単位で積分し、狭いcoreは正規化後も同じsource coverageを保持する。可視microstructureは単一のcanonical height近傍から得るnormal / curvature / roughness / tangent / visibilityだけで構成する。sourceの正面化と一緒にcanonical normalのbase responseを弱めず、方向とradianceだけからscroll時のdetail変化を導く。desktop / mobileの進捗0・中間・wash前で、境界softness、凹凸の明暗、白芯周辺のにじみが同じ光源方向へ同意し、中間光部が描き足した線、固定周期、孤立glint、画面空間grainではなく、暗い谷と方向整合した微細反射として読める。終端白は完成RGBのwhite mixでなくscene exposureとsensor saturationから到達する。Layeredの斜め構図、寒色背景、cream→暖色→飽和白の階層、決定性、responsive、exit washを維持する。定量値は回帰guardrailとし、採否は目視を優先する。
+- AC-039: checkpoint 52を固定emitter transportの構造証拠として保全し、checkpoint 58〜61のpixel-footprint covariance系は白点を減らしても局所contrastを平均化した不採用経路として扱う。canonical heightのfine / coarse slopeを同一近傍から分離し、coarseを抑えたmicro slopeを平均せず有限面光源のdiffuse / anisotropic GGXへ直接渡す。detail専用mask / radiance / final RGB加算なしで、暗部では細部が沈み、中間光で微細な織りが解像し、同心coreのsensor飽和で白芯へ連続的に消えることをdesktop / mobileで目視する。波、亀裂、salt-and-pepper粒子、均一な織目、receiver-space面塗りを再発させず、Layeredの斜め構図・寒暖階層・意図的な白飛びをcheckpoint 69以上に保つ。
 
 ## Decision Review Scope
 
@@ -102,6 +103,8 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - DEC-010: 採用3019と写真案を折衷せず、canonical 3000と独立対照3001へ分ける収束をreviewする。
 - DEC-011: macro fieldを完成色ではなくirradiance / visibilityとして再解釈し、materialからの出射光を一つのradiance計算へ統合することをreviewする。
 - DEC-012: Layeredのpalette anchorをenergyから分離した入射chromaticityとsensor responseとして扱い、bounded self-visibilityをdirect項だけへ接続することをreviewする。
+- DEC-014: macro geometryとsurface microstructureを分離し、pixel footprint内の局所法線分布を同じincident radianceへ渡すこと、runtime reference成立前にcompact近似や撮像効果へ進まないことをreviewする。
+- DEC-015: canonical heightのfine / coarse slopeを分離し、band-limited local facetを平均化せず有限光源へ渡すこと、detail maskやscreen-space grainを追加せずbroad / core / sensorの共有pathで解像と飽和を作ることをreviewする。
 
 ## Intent-derived Invariants
 
@@ -173,6 +176,7 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 | AC-036 | owner direction | radiance transport統合 | Static + Shader compile + Browser + Manual | 3019 checkpointと現行shaderのdiff、debug light field、1440x900 / 390x844、progress 0 / mid / exit、時間差capture | 完成RGB mix・height直接加算・影色減算がなく、ambient + visibility × direct BRDFから像を作る。macro重心・方向・白芯位置、決定性、responsive、exit washを維持する | verified |
 | AC-037 | owner critique | Layered色軌跡と局所光輸送の収束 | Static + Shader compile + Browser + Quantitative + Manual | Layered / Radiance / checkpointの1440x900・390x844、progress 0 / mid / exit、背景・中間光・白芯ROI、edge / high-frequency response、時間差capture | palette anchorを完成RGBへ戻さず、入射chromaticityとsensor responseから寒色背景→cream→暖色→白を連続して作る。bounded self-visibilityはdirect項だけへ作用し、macro構図、決定性、responsive、exit washを維持する | verified |
 | AC-038 | owner review | 同一scene由来の照明整合と中間光の微細表現 | Static + Shader compile + Browser + Visual review | DEC-012 checkpoint、checkpoint 50、固定emitter候補の1600x900・390x844、progress 0 / 約0.43 / 約0.71 / 0.76〜0.91 / 1.00、settled capture、source / output hash | emitter radianceは固定で、遮蔽で失ったcore energyをbroad lobe / ambientへ補償しない。broad / coreは別BRDF pathを保ち、完全露出coreは密な飽和白芯、部分遮蔽はcream→暖色→白のladderを作る。microhighlightはhalf-vectorと揃うfacet群だけに現れ、白点noiseにならない。背景と照射域のcontrast、高周波の焦点階層、Layeredの構図・色階層・終端whiteを同時に保ち、owner採否を得る | planned |
+| AC-039 | owner critique + checkpoint 69 direction acceptance | band-separated local facetによる選択的解像 | Shader compile + Browser + Visual review | checkpoint 52、checkpoint 58〜69、1600x900・390x844、Layered baseline、DSCF0627 reference | coarse slopeが波として前景化せず、micro slopeが平均化でぼけず、孤立白点へ分解しない。暗部→中間光の微細解像→飽和白芯が同じradiance / sensor pathから現れ、Layered構図と寒暖階層を保つ | covered |
 | INV-003 | DEC-001 | diagnostic opt-in境界 | E2E + Static | default URLと開発opt-in URL | defaultへdiagnostic state / controlが漏れない | verified |
 | INV-005 | DEC-003 | WebGL failure fallback | Integration | WebGL2 null、compile error、`WEBGL_lose_context` | 全対象経路でfallbackと`otibo`が読める | verified |
 | INV-008 | DEC-003 | asset-only deployment | Build + Deployment | `npm run build && npm run deploy:dry-run` | Worker scriptなしでstatic outputを受理する | verified |
@@ -287,6 +291,9 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - [x] checkpoint 52のdesktop / mobileで進捗0・中間・wash前・露光上昇・surface whiteを実見し、密な飽和白芯、cream→暖色→白のladder、暗い背景とのcontrast、連続した材質highlight、横overflowなしを確認する。
 - [x] checkpoint 52のdesktop初期像を1.2秒離してcaptureし、byte一致と時間入力なしを確認する。
 - [ ] 固定emitter候補の最終像についてowner採否を得る（checkpoint 50は不採用、checkpoint 52は実装・内部目視・構造QA済み）。
+- [ ] checkpoint 52を視覚候補から外し、sensor / glareなしのruntime multi-tap referenceとsingle averaged normalを同条件で比較する。
+- [ ] runtime referenceで局所highlightが光源方向とcanonical heightへ整合した連結detailとして現れ、波状面、白点noise、均一な織目へ見えないことを実見する。
+- [ ] source sample数の2段階比較で像が収束し、compact表現へ進む場合はruntime referenceとの目視一致を確認する。
 
 ## High-risk Checklist
 
