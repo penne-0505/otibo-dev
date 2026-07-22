@@ -4,8 +4,9 @@ status: active
 draft_status: n/a
 qa_status: verified
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-04
-updated_at: 2026-07-04
+updated_at: 2026-07-17
 references:
   - "_docs/qa/Legal/legal-pages/test-plan.md"
   - "_docs/intent/Legal/legal-pages/decision.md"
@@ -26,7 +27,10 @@ Medo / Sarae / otibo の法務ページを otibo.dev で公開した。2026-07-0
 
 Verdict: PASS
 
-全 AC(001〜004, 101〜102)と全 INV(001〜008)が満たされている。自動・静的検証 + オーナー実施事項(デプロイ・env 実値設定・テスト送信・通読承認)がすべて 2026-07-04 に完了。残 Follow-up は EFFECTIVE_DATE のストア公開時反映のみ(設計通りの後続 chore)。
+全AC、影響するDEC、strict INVが満たされている。自動・静的検証 +
+オーナー実施事項(デプロイ・env実値設定・テスト送信・通読承認)が
+すべて2026-07-04に完了。残Follow-upはEFFECTIVE_DATEのストア公開時反映のみ
+(設計通りの後続chore)。
 
 ## Commands Run
 
@@ -99,15 +103,25 @@ robots:    sarae / stash = noindex, nofollow / 法務 4 ページ = index, follo
 | AC-101 | PASS | `grep -rn "要オーナー確認" app/` 0 件 |
 | AC-102 | PASS | `npm run lint && npm run typecheck && npm run build` 全 exit 0 |
 
+## Decision Conformance
+
+| ID | Result | Why the implementation remains aligned |
+| --- | --- | --- |
+| DEC-001 | PASS | 未確認markerを解消し、ownerの全文通読後に公開した。 |
+| DEC-002 | PASS | current factsからnew draftを作成し、旧文書を公開本文として流用しなかった。 |
+| DEC-003 | PASS | 合意routeをstatic配信し、提出対象URLを固定した。 |
+| DEC-004 | PASS | shared legal layoutをapp側で構成し、library primitiveを消費した。 |
+| DEC-005 | PASS | 各pageでrobots値とページ固有の理由を隣接定義した。 |
+| DEC-006 | PASS | owner決定範囲の実値だけをbuild時に供給し、repositoryへ保存しなかった。 |
+| DEC-007 | PASS | Sarae / Stashを「準備中」と明示した。 |
+| DEC-008 | PASS | 法解釈をagent判断で確定せず、owner reviewを完了した。 |
+
 ## Invariant Coverage
 
 | ID | Result | Evidence |
 | --- | --- | --- |
 | INV-001 | PASS | オーナー確認 checklist 全 11 項目クローズ(2026-07-04)。AC-101 grep 0 件 |
-| INV-002 | PASS | 法的文書は `_docs/draft/Legal/legal-pages/` ドラフトからの転記のみ。jj / git 履歴からの復元操作なし |
 | INV-003 | PASS | オーナー通読承認(2026-07-04)。アカウント削除手順含む全文の事実確認完了 |
-| INV-004 | PASS | `panda.config.ts` で `otiboPreset` import + `importMap: "@otibo/ui/styled-system"` 確認 |
-| INV-005 | PASS | 全法務ページの metadata 定義に `// intent: INV-005 (Legal/legal-pages)` コメント付き |
 | INV-006 | PASS | `grep -rn "OWNER_NAME\|OWNER_ADDRESS\|OWNER_PHONE" out/` 0 件。build 出力にフォールバック表示のみ |
 | INV-007 | PASS | sarae / stash: robots noindex + 「準備中」明示。完成ページと混同しない体裁 |
 | INV-008 | PASS | draft レビュー + オーナー通読承認(2026-07-04)で法解釈断定記述なしを確認 |

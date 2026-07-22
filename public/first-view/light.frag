@@ -10,6 +10,27 @@ uniform int u_debug_mode;
 
 out vec4 outColor;
 
+const float GOLDEN_ANGLE = 2.399963229728653;
+const float PI = 3.141592653589793;
+const int MATERIAL_SOURCE_SAMPLE_COUNT = 16;
+
+struct MaterialSurface {
+  float height;
+  vec3 diffuseNormal;
+  vec3 specularNormal;
+  float crest;
+  float valley;
+  float localVariation;
+  float roughness;
+  vec3 tangent;
+  float anisotropy;
+  float ambientVisibility;
+};
+
+float luminance(vec3 color) {
+  return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
   p += dot(p, p + 45.32);
@@ -45,12 +66,18 @@ vec2 materialCoord(vec2 uv) {
   return centered + 0.5;
 }
 
-float materialHeight(vec2 uv) {
+float materialPrimaryHeight(vec2 uv) {
   vec2 q = materialCoord(uv) * 0.72 + vec2(0.13, 0.04);
-  float h0 = texture(u_height_map, q).r;
-  float h1 = texture(u_height_map, q * 1.83 + vec2(0.29, 0.41)).r;
-  float h2 = texture(u_height_map, q * 0.53 + vec2(0.08, 0.22)).r;
-  return h0 * 0.74 + h1 * 0.17 + h2 * 0.09;
+  return texture(u_height_map, q).r;
+}
+
+float materialHeight(vec2 uv) {
+  // intent: DEC-013 (Site/first-view-light-shader) — one canonical sample is one physical surface; rotated, scaled, or procedurally generated copies cannot become visible relief.
+  return materialPrimaryHeight(uv);
+}
+
+float materialDirectHeight(vec2 uv) {
+  return materialHeight(uv);
 }
 
 vec2 materialTexelStep() {
@@ -58,65 +85,224 @@ vec2 materialTexelStep() {
   return 1.0 / (u_height_map_size * vec2(aspect, 1.0) * 0.72);
 }
 
-vec3 materialNormal(vec2 uv) {
-  // intent: DEC-007 (Site/first-view-light-shader) — texel-space relief remains stable when the drawing buffer changes.
-  vec2 e = materialTexelStep();
+MaterialSurface sampleMaterialSurface(vec2 uv) {
+  MaterialSurface surface;
+  vec2 fineStep = max(
+    vec2(1.08) / u_resolution,
+    materialTexelStep() * 1.35
+  );
+  vec2 broadStep = vec2(4.20) / u_resolution;
   float h = materialHeight(uv);
-  float hx = materialHeight(uv + vec2(e.x, 0.0));
-  float hy = materialHeight(uv + vec2(0.0, e.y));
-  vec2 slope = vec2(h - hx, h - hy) / e * 0.026;
-  return normalize(vec3(slope, 1.0));
+  float hL = materialHeight(uv - vec2(fineStep.x, 0.0));
+  float hR = materialHeight(uv + vec2(fineStep.x, 0.0));
+  float hD = materialHeight(uv - vec2(0.0, fineStep.y));
+  float hU = materialHeight(uv + vec2(0.0, fineStep.y));
+  float hLD = materialHeight(uv - fineStep);
+  float hLU = materialHeight(uv + vec2(-fineStep.x, fineStep.y));
+  float hRD = materialHeight(uv + vec2(fineStep.x, -fineStep.y));
+  float hRU = materialHeight(uv + fineStep);
+  float bL = materialHeight(uv - vec2(broadStep.x, 0.0));
+  float bR = materialHeight(uv + vec2(broadStep.x, 0.0));
+  float bD = materialHeight(uv - vec2(0.0, broadStep.y));
+  float bU = materialHeight(uv + vec2(0.0, broadStep.y));
+  float fineMean = (hL + hR + hD + hU) * 0.25;
+  float broadMean = (bL + bR + bD + bU) * 0.25;
+  vec2 fineSlope = vec2(
+    hLD + hL * 2.0 + hLU - hRD - hR * 2.0 - hRU,
+    hLD + hD * 2.0 + hRD - hLU - hU * 2.0 - hRU
+  ) / (fineStep * 8.0) * 0.020;
+  vec2 broadSlope = vec2(bL - bR, bD - bU) /
+    (broadStep * 2.0) * 0.015;
+  float localVariation = sqrt((
+    pow(h - hL, 2.0) + pow(h - hR, 2.0) +
+    pow(h - hD, 2.0) + pow(h - hU, 2.0)
+  ) * 0.25);
+  float localRelief = h - fineMean;
+  float broadRelief = fineMean - broadMean;
+  float crest = smoothstep(0.003, 0.034, localRelief + broadRelief * 0.30);
+  float valley = smoothstep(0.003, 0.034, -localRelief - broadRelief * 0.30);
+  float variationClass = smoothstep(0.012, 0.072, localVariation);
+
+  surface.height = h;
+  surface.diffuseNormal = normalize(vec3(
+    broadSlope * 0.92 + fineSlope * 0.07,
+    1.0
+  ));
+  surface.specularNormal = normalize(vec3(
+    broadSlope * 0.38 + fineSlope * 0.78,
+    1.0
+  ));
+  vec2 orientationGradient = broadSlope * 0.90 + fineSlope * 0.10;
+  float orientationLength = length(orientationGradient);
+  vec2 gradientDirection = orientationLength > 0.0001 ?
+    orientationGradient / orientationLength : vec2(0.0, 1.0);
+  vec3 tangentSeed = vec3(-gradientDirection.y, gradientDirection.x, 0.0);
+  surface.tangent = normalize(
+    tangentSeed - surface.specularNormal *
+      dot(tangentSeed, surface.specularNormal)
+  );
+  surface.crest = crest;
+  surface.valley = valley;
+  surface.localVariation = localVariation;
+  surface.roughness = clamp(
+    0.64 + valley * 0.18 + variationClass * 0.08 - crest * 0.22,
+    0.33,
+    0.90
+  );
+  surface.anisotropy = mix(0.28, 0.76, variationClass) *
+    mix(1.0, 0.72, valley);
+  surface.ambientVisibility = clamp(
+    0.995 - valley * 0.230 -
+      smoothstep(0.34, 0.86, length(surface.diffuseNormal.xy)) * 0.025,
+    0.72,
+    1.0
+  );
+  // intent: DEC-013 (Site/first-view-light-shader) — the canonical 3x3 slope preserves local facet continuity without adding a second motif; normals, curvature class, roughness, and cavity visibility all remain measurements of one height neighborhood.
+  return surface;
 }
 
-float materialCurvature(vec2 uv) {
-  vec2 e = materialTexelStep();
-  float h = materialHeight(uv);
-  float hL = materialHeight(uv - vec2(e.x, 0.0));
-  float hR = materialHeight(uv + vec2(e.x, 0.0));
-  float hU = materialHeight(uv + vec2(0.0, e.y));
-  float hD = materialHeight(uv - vec2(0.0, e.y));
-  vec2 secondDerivative = vec2(
-    hL + hR - h * 2.0,
-    hU + hD - h * 2.0
-  ) / (e * e);
-  float referenceStep = 0.72 / 1024.0;
-  return (secondDerivative.x + secondDerivative.y) * referenceStep * referenceStep;
+float materialSelfVisibility(vec2 uv, vec3 lightDirection) {
+  float horizontalLength = length(lightDirection.xy);
+  if (horizontalLength < 0.04) {
+    return 1.0;
+  }
+
+  vec2 e = max(
+    vec2(1.15) / u_resolution,
+    materialTexelStep() * 1.75
+  );
+  vec2 rayDirection = normalize(lightDirection.xy);
+  float centerHeight = (materialDirectHeight(uv) - 0.5) * 0.0145;
+  float blocked = 0.0;
+  // Three local samples resolve a short height-field horizon without inventing
+  // a second relief layer.
+  for (int stepIndex = 1; stepIndex <= 3; stepIndex++) {
+    float stepDistance = float(stepIndex) * 1.55;
+    vec2 offset = rayDirection * e * stepDistance;
+    float planarDistance = length(offset);
+    float rayRise = planarDistance * lightDirection.z / horizontalLength;
+    float neighborHeight = (materialDirectHeight(uv + offset) - 0.5) *
+      0.0145;
+    float excessHeight = neighborHeight - centerHeight - rayRise;
+    blocked = max(blocked, smoothstep(0.00010, 0.00075, excessHeight));
+  }
+  // intent: DEC-013 (Site/first-view-light-shader) — direct-only occlusion traces the same canonical surface used by both normals and BRDF.
+  return mix(0.58, 1.0, 1.0 - blocked);
 }
 
-float materialRoughness(vec3 normal, float curvature) {
-  float slope = length(normal.xy);
-  float bend = smoothstep(0.004, 0.065, abs(curvature));
-  return clamp(0.755 + slope * 0.135 + bend * 0.085, 0.72, 0.94);
-}
-
-float materialAmbientVisibility(vec3 normal, float curvature) {
-  float cavity = smoothstep(0.000, 0.038, max(curvature, 0.0));
-  float steepPocket = smoothstep(0.18, 0.74, length(normal.xy));
-  return clamp(0.998 - cavity * 0.058 - steepPocket * 0.017, 0.89, 1.0);
+float diskSourceVisibility(float normalizedDistance) {
+  float x = clamp(normalizedDistance, -1.0, 1.0);
+  float segment = asin(x) + x * sqrt(max(0.0, 1.0 - x * x));
+  return clamp(0.5 + segment / 3.141592653589793, 0.0, 1.0);
 }
 
 float ggxSpecular(
   vec3 normal,
+  vec3 tangent,
   vec3 viewDirection,
   vec3 lightDirection,
-  float roughness
+  float roughness,
+  float anisotropy,
+  float dielectricF0
 ) {
   vec3 halfVector = normalize(viewDirection + lightDirection);
   float noV = max(dot(normal, viewDirection), 0.0001);
   float noL = max(dot(normal, lightDirection), 0.0001);
   float noH = max(dot(normal, halfVector), 0.0001);
   float voH = max(dot(viewDirection, halfVector), 0.0);
-  float alpha = roughness * roughness;
-  float alphaSquared = alpha * alpha;
-  float denominator = noH * noH * (alphaSquared - 1.0) + 1.0;
-  float distribution = alphaSquared /
-    max(3.141592653589793 * denominator * denominator, 0.0001);
+  vec3 bitangent = normalize(cross(normal, tangent));
+  float alpha = max(roughness * roughness, 0.035);
+  float aspect = sqrt(max(1.0 - anisotropy * 0.76, 0.24));
+  float alphaTangent = max(alpha / aspect, 0.035);
+  float alphaBitangent = max(alpha * aspect, 0.035);
+  float hTangent = dot(halfVector, tangent);
+  float hBitangent = dot(halfVector, bitangent);
+  float anisotropicDenominator =
+    hTangent * hTangent / (alphaTangent * alphaTangent) +
+    hBitangent * hBitangent / (alphaBitangent * alphaBitangent) +
+    noH * noH;
+  float distribution = 1.0 / max(
+    3.141592653589793 * alphaTangent * alphaBitangent *
+      anisotropicDenominator * anisotropicDenominator,
+    0.0001
+  );
   float geometryK = pow(roughness + 1.0, 2.0) * 0.125;
   float geometryView = noV / mix(noV, 1.0, geometryK);
   float geometryLight = noL / mix(noL, 1.0, geometryK);
-  float fresnel = 0.018 + (1.0 - 0.018) * pow(1.0 - voH, 5.0);
+  float fresnel = dielectricF0 +
+    (1.0 - dielectricF0) * pow(1.0 - voH, 5.0);
   return distribution * geometryView * geometryLight * fresnel /
     max(4.0 * noV * noL, 0.0001);
+}
+
+vec3 integrateAreaMaterial(
+  vec3 diffuseNormal,
+  vec3 specularNormal,
+  vec3 specularTangent,
+  vec3 viewDirection,
+  vec3 sourceVector,
+  float sourceRadius,
+  float sourceDiskCut,
+  float roughness,
+  float anisotropy,
+  float dielectricF0
+) {
+  vec3 integral = vec3(0.0);
+  for (int i = 0; i < MATERIAL_SOURCE_SAMPLE_COUNT; i++) {
+    float sampleIndex = float(i) + 0.5;
+    float diskRadius = sqrt(
+      sampleIndex / float(MATERIAL_SOURCE_SAMPLE_COUNT)
+    );
+    float angle = sampleIndex * GOLDEN_ANGLE;
+    vec2 diskSample = vec2(cos(angle), sin(angle)) * diskRadius;
+    float visibility = step(diskSample.y, sourceDiskCut);
+    vec3 sampleVector = sourceVector + vec3(diskSample * sourceRadius, 0.0);
+    float distanceSquared = max(dot(sampleVector, sampleVector), 0.0001);
+    vec3 lightDirection = sampleVector * inversesqrt(distanceSquared);
+    float emitterCosine = max(lightDirection.z, 0.0);
+    float sampleWeight = visibility * emitterCosine / distanceSquared;
+    float diffuseNoL = max(dot(diffuseNormal, lightDirection), 0.0);
+    float flatNoL = emitterCosine;
+    float specularNoL = max(dot(specularNormal, lightDirection), 0.0);
+    integral.x += sampleWeight * diffuseNoL;
+    integral.y += sampleWeight * flatNoL;
+    integral.z += sampleWeight * ggxSpecular(
+      specularNormal,
+      specularTangent,
+      viewDirection,
+      lightDirection,
+      roughness,
+      anisotropy,
+      dielectricF0
+    ) * specularNoL;
+  }
+  float sourceArea = PI * sourceRadius * sourceRadius;
+  // intent: DEC-013 (Site/first-view-light-shader) — fixed emitter radiance is multiplied by the unnormalized visible solid-angle integral; source area, distance loss, and occlusion cannot be divided away and rebuilt by a separate mask.
+  return integral * sourceArea / float(MATERIAL_SOURCE_SAMPLE_COUNT);
+}
+
+vec3 sensorResponse(vec3 sceneRadiance) {
+  vec3 sensorLinear = max(sceneRadiance, 0.0) * vec3(1.025, 1.000, 0.975);
+  float sceneLuminance = luminance(sensorLinear);
+  vec3 chromaticity = sensorLinear / max(sceneLuminance, 0.0001);
+
+  vec3 warmSensorWhite = vec3(1.165457, 0.988264, 0.629046);
+  float warmAdaptation = smoothstep(0.24, 1.18, sceneLuminance) *
+    (1.0 - smoothstep(1.12, 2.85, sceneLuminance));
+  chromaticity = mix(chromaticity, warmSensorWhite, warmAdaptation * 0.66);
+
+  // intent: DEC-012 (Site/first-view-light-shader) — sensor crosstalk makes the brightest radiance approach display white continuously instead of switching palettes.
+  float highRadianceCrosstalk = smoothstep(1.65, 3.60, sceneLuminance);
+  chromaticity = mix(chromaticity, vec3(1.0), highRadianceCrosstalk * 0.55);
+
+  float mappedLuminance = sceneLuminance *
+    (1.16 + sceneLuminance * 0.12) /
+    (1.0 + sceneLuminance * 0.32);
+  float midtoneWindow = smoothstep(0.12, 0.44, sceneLuminance) *
+    (1.0 - smoothstep(0.72, 1.12, sceneLuminance));
+  mappedLuminance *= 1.0 + midtoneWindow * 0.03;
+  vec3 sensorSignal = chromaticity * mappedLuminance;
+  return pow(clamp(sensorSignal, 0.0, 1.0), vec3(1.0 / 2.2));
 }
 
 float beamCenter(vec2 uv) {
@@ -145,7 +331,12 @@ void main() {
   lowerEdge -= incidence * 0.130;
   float upperSoft = mix(0.010, 0.030, smoothstep(0.25, 0.70, edgeNoise)) + incidence * 0.050;
   float lowerSoft = 0.285 + incidence * 0.080;
-  float topCut = 1.0 - smoothstep(upperEdge - upperSoft, upperEdge + upperSoft * 1.55, d);
+  float occluderDistance = upperEdge - d + upperSoft * 0.18;
+  float sourceProjectionRadius = upperSoft * mix(1.62, 1.72, incidence);
+  // intent: DEC-013 (Site/first-view-light-shader) — the upper transition is the visible area of one finite source crossing one occluder edge.
+  float topCut = diskSourceVisibility(
+    occluderDistance / max(sourceProjectionRadius, 0.0001)
+  );
   float bottomCut = smoothstep(lowerEdge - lowerSoft, lowerEdge + lowerSoft * 1.35, d);
   float beamMask = topCut * bottomCut;
 
@@ -154,80 +345,141 @@ void main() {
   float obliqueLift = 0.82 + 0.18 * smoothstep(0.05, 0.92, uv.x);
   float frontalFill = incidence * (0.16 + 0.34 * exp(-pow((d + 0.080) / 0.680, 2.0)));
   float lightField = clamp(beamMask * (0.10 + 1.08 * core * centerLift) * obliqueLift + frontalFill, 0.0, 1.0);
-  float hotCore = beamMask * exp(-pow((d + 0.092) / mix(0.132, 0.235, incidence), 2.0)) * exp(-pow((uv.x - 0.66) / 0.48, 2.0)) * mix(1.0, 0.52, incidence);
-  float apertureSpark = beamMask * exp(-pow((d + 0.126) / mix(0.070, 0.145, incidence), 2.0)) * exp(-pow((uv.x - 0.60) / 0.38, 2.0)) * mix(1.0, 0.34, incidence);
-  float opticalHaloOuter = beamMask * exp(-pow((d + 0.094) / mix(0.360, 0.480, incidence), 2.0)) * exp(-pow((uv.x - 0.60) / 0.72, 2.0));
-  float opticalHaloInner = beamMask * exp(-pow((d + 0.094) / mix(0.185, 0.270, incidence), 2.0)) * exp(-pow((uv.x - 0.62) / 0.54, 2.0));
-  float opticalHaloCore = beamMask * exp(-pow((d + 0.094) / mix(0.092, 0.145, incidence), 2.0)) * exp(-pow((uv.x - 0.64) / 0.43, 2.0));
-  float warmVeil = beamMask * exp(-pow((d + 0.058) / mix(0.215, 0.420, incidence), 2.0)) * exp(-pow((uv.x - 0.58) / 0.64, 2.0));
-  float upperApertureSkin = beamMask * exp(-pow((d - upperEdge + 0.018) / 0.046, 2.0)) * smoothstep(0.10, 0.82, uv.x);
-  float upperShadow = smoothstep(upperEdge - 0.012, upperEdge + 0.108, d);
-  float innerWarmShelf = beamMask * exp(-pow((d - upperEdge + 0.112) / 0.124, 2.0)) * smoothstep(0.08, 0.86, uv.x);
+  float hotCoreProfile = exp(-pow((d + 0.092) / mix(0.096, 0.182, incidence), 2.0)) *
+    exp(-pow((uv.x - 0.66) / 0.40, 2.0));
+  float apertureProfile = exp(-pow((d + 0.126) / mix(0.070, 0.145, incidence), 2.0)) *
+    exp(-pow((uv.x - 0.60) / 0.38, 2.0));
+  float opticalHaloOuterProfile = exp(-pow((d + 0.094) / mix(0.360, 0.480, incidence), 2.0)) * exp(-pow((uv.x - 0.60) / 0.72, 2.0));
+  float opticalHaloInnerProfile = exp(-pow((d + 0.094) / mix(0.185, 0.270, incidence), 2.0)) * exp(-pow((uv.x - 0.62) / 0.54, 2.0));
+  float opticalHaloCoreProfile = exp(-pow((d + 0.094) / mix(0.080, 0.132, incidence), 2.0)) * exp(-pow((uv.x - 0.64) / 0.38, 2.0));
+  float warmVeilProfile = exp(-pow((d + 0.058) / mix(0.215, 0.420, incidence), 2.0)) * exp(-pow((uv.x - 0.58) / 0.64, 2.0));
+  float upperApertureSkinProfile = exp(-pow((d - upperEdge + 0.018) / 0.046, 2.0)) * smoothstep(0.10, 0.82, uv.x);
+  float innerWarmShelfProfile = exp(-pow((d - upperEdge + 0.112) / 0.124, 2.0)) * smoothstep(0.08, 0.86, uv.x);
+  float hotCore = beamMask * hotCoreProfile * mix(1.0, 0.52, incidence);
+  float apertureSpark = beamMask * apertureProfile * mix(1.0, 0.34, incidence);
+  float opticalHaloOuter = beamMask * opticalHaloOuterProfile;
+  float opticalHaloInner = beamMask * opticalHaloInnerProfile;
+  float opticalHaloCore = beamMask * opticalHaloCoreProfile;
+  float warmVeil = beamMask * warmVeilProfile;
+  float upperApertureSkin = beamMask * upperApertureSkinProfile;
+  float upperShadow = 1.0 - topCut;
+  float innerWarmShelf = beamMask * innerWarmShelfProfile;
   float lowerBlueVeil = beamMask * exp(-pow((d + 0.318) / 0.205, 2.0)) * (0.72 + 0.28 * fbm(p * 2.7 + vec2(5.4, 1.1)));
-  float edgeOcclusion = exp(-pow((d - upperEdge) / 0.034, 2.0)) * upperShadow;
-  float contactShadow = exp(-pow((d - upperEdge - 0.014) / 0.060, 2.0)) * upperShadow;
+  float penumbraDensity = 4.0 * topCut * (1.0 - topCut);
+  float edgeOcclusion = penumbraDensity * upperShadow * 0.58;
+  float contactShadow = penumbraDensity * upperShadow * upperShadow * 0.42;
   float apertureBite = exp(-pow((d - upperEdge - 0.030) / 0.032, 2.0)) * smoothstep(0.10, 0.78, uv.x) * smoothstep(0.98, 0.20, uv.y);
   float lowerCoolReturn = 1.0 - smoothstep(lowerEdge - 0.16, lowerEdge + 0.42, d);
 
   // intent: DEC-004 (Site/first-view-light-shader) — static material coordinates make scroll read as changing illumination.
   // intent why-not: DEC-002 (Site/first-view-light-shader) — excluding time preserves a deterministic image at each scroll position.
   vec2 materialUv = uv;
-  vec3 normal = materialNormal(materialUv);
-  float curvature = materialCurvature(materialUv);
-  vec3 frontalLight = normalize(vec3(-0.04, 0.07, 1.0));
-  vec3 grazingLight = normalize(mix(normalize(vec3(-0.24, 0.44, 0.86)), frontalLight, incidence));
-  vec3 warmBeamLight = normalize(mix(normalize(vec3(-0.18, -0.18, 0.97)), frontalLight, incidence));
+  MaterialSurface materialSurface = sampleMaterialSurface(materialUv);
+  float height = materialSurface.height;
+  vec3 normal = materialSurface.diffuseNormal;
+  vec3 specularNormal = materialSurface.specularNormal;
+  vec2 reliefClass = vec2(materialSurface.crest, materialSurface.valley);
+  vec3 sourcePosition = mix(
+    vec3(0.38, 0.30, 0.58),
+    vec3(-0.02, 0.08, 1.85),
+    smoothstep(0.0, 1.0, incidence)
+  );
+  vec3 receiverPosition = vec3(p, (height - 0.5) * 0.020);
+  vec3 sourceVector = sourcePosition - receiverPosition;
+  float sourceDistanceSquared = max(dot(sourceVector, sourceVector), 0.0001);
+  // intent: DEC-013 (Site/first-view-light-shader) — direction, distance response, BRDF, and self-visibility share this finite source position.
+  vec3 directDirection = normalize(sourceVector);
+  float sourceRadius = mix(0.22, 0.34, incidence);
   // intent: DEC-011 (Site/first-view-light-shader) — height changes material parameters, never final RGB directly.
-  float normalStrength = mix(0.52, 0.18, smoothstep(0.08, 0.72, incidence));
-  vec3 shadingNormal = normalize(mix(vec3(0.0, 0.0, 1.0), normal, normalStrength));
-  vec3 directDirection = normalize(mix(grazingLight, warmBeamLight, smoothstep(0.08, 0.86, lightField)));
+  float directNormalStrength = 0.80;
+  float ambientNormalStrength = 0.36;
+  // intent: DEC-013 (Site/first-view-light-shader) — moving the shared source changes incident direction; it must not flatten the canonical surface before radiance and sensor saturation do so naturally.
+  vec3 directNormal = normalize(mix(
+    vec3(0.0, 0.0, 1.0),
+    normal,
+    directNormalStrength
+  ));
+  vec3 ambientNormal = normalize(mix(
+    vec3(0.0, 0.0, 1.0),
+    normalize(mix(normal, specularNormal, 0.24)),
+    ambientNormalStrength
+  ));
   vec3 skyDirection = normalize(vec3(-0.34, 0.52, 0.78));
   vec3 bounceDirection = normalize(vec3(0.24, -0.42, 0.88));
-  float directNoL = max(dot(shadingNormal, directDirection), 0.0);
-  float skyNoL = max(dot(shadingNormal, skyDirection), 0.0);
-  float bounceNoL = max(dot(shadingNormal, bounceDirection), 0.0);
+  float skyNoL = max(dot(ambientNormal, skyDirection), 0.0);
+  float bounceNoL = max(dot(ambientNormal, bounceDirection), 0.0);
   float ambientDiffuse = mix(skyNoL, bounceNoL, 0.28);
-  float roughness = materialRoughness(normal, curvature);
-  float ambientVisibility = materialAmbientVisibility(normal, curvature);
-  float specularBrdf = ggxSpecular(
-    shadingNormal,
-    vec3(0.0, 0.0, 1.0),
-    directDirection,
-    roughness
+  float specularRoughness = materialSurface.roughness;
+  float ambientVisibility = materialSurface.ambientVisibility;
+  float selfVisibility = materialSelfVisibility(materialUv, directDirection);
+  vec3 viewDirection = normalize(vec3(-p.x * 0.12, -p.y * 0.08, 1.0));
+  vec3 areaMaterial = integrateAreaMaterial(
+    directNormal,
+    specularNormal,
+    materialSurface.tangent,
+    viewDirection,
+    sourceVector,
+    sourceRadius,
+    clamp(
+      occluderDistance / max(sourceProjectionRadius, 0.0001),
+      -1.0,
+      1.0
+    ),
+    specularRoughness,
+    materialSurface.anisotropy,
+    0.050
   );
+  float coreSourceRadius = sourceRadius * 0.32;
+  float normalizedCoreOccluderDistance = clamp(
+    occluderDistance / max(sourceProjectionRadius * 0.32, 0.0001),
+    -1.0,
+    1.0
+  );
+  vec3 coreAreaMaterial = integrateAreaMaterial(
+    directNormal,
+    specularNormal,
+    materialSurface.tangent,
+    viewDirection,
+    sourceVector,
+    coreSourceRadius,
+    normalizedCoreOccluderDistance,
+    specularRoughness,
+    materialSurface.anisotropy,
+    0.060
+  );
+  // intent: DEC-013 (Site/first-view-light-shader) — broad and core transport remain unnormalized solid-angle integrals; the smaller core is sharp because of emitter size and radiance, not altered material roughness or a post-normalization gain.
 
   // The preserved composition is now a field of incident energy and visibility,
   // not a pair of finished RGB paintings.
   float penumbraVisibility = clamp(beamMask, 0.0, 1.0);
   float edgeVisibility = 1.0 - clamp(
-    edgeOcclusion * 0.46 + contactShadow * 0.34 + apertureBite * 0.22,
+    penumbraDensity * 0.10 + apertureBite * 0.05,
     0.0,
-    0.82
+    0.24
   );
   float directVisibility = clamp(
-    penumbraVisibility * edgeVisibility + frontalFill * 0.42,
+    penumbraVisibility * edgeVisibility,
     0.0,
     1.0
   );
-  float beamEnergy = 0.10 + core * 0.76 + warmVeil * 0.22;
-  float layeredEnergy = opticalHaloOuter * 0.12 +
-    opticalHaloInner * 0.24 +
-    opticalHaloCore * 0.66 +
-    hotCore * 0.54 +
-    apertureSpark * 0.32 +
-    upperApertureSkin * 0.12 +
-    innerWarmShelf * 0.10;
-  float directIrradiance = directVisibility *
-    (beamEnergy + layeredEnergy) *
-    (0.74 + 0.34 * smoothstep(0.05, 0.92, uv.x));
+  float localVisibilityWeight = smoothstep(0.10, 0.82, lightField) *
+    mix(0.82, 0.38, incidence);
+  // intent: DEC-012 (Site/first-view-light-shader) — short-range height visibility attenuates direct irradiance only and cannot redraw the macro beam.
+  float materialDirectVisibility = mix(
+    1.0,
+    selfVisibility,
+    localVisibilityWeight
+  );
 
   float environmentOcclusion = 1.0 - clamp(
     upperShadow * 0.48 + edgeOcclusion * 0.14 + contactShadow * 0.10,
     0.0,
     0.64
   );
-  float ambientLevel = mix(0.88, 1.12, lowerCoolReturn * 0.52) *
-    environmentOcclusion * mix(1.0, 1.68, incidence);
+  float ambientLevel = mix(0.74, 1.12, lowerCoolReturn * 0.52) *
+    environmentOcclusion * mix(1.0, 2.15, incidence);
+  ambientLevel *= 1.0 + lowerCoolReturn * 0.24 *
+    pow(1.0 - incidence, 2.0);
   float portraitResponse = 1.0 - smoothstep(
     0.68,
     1.05,
@@ -236,75 +488,139 @@ void main() {
   float aoWeight = (1.0 - portraitResponse) *
     mix(0.72, 0.20, smoothstep(0.08, 0.70, incidence));
   float materialAmbientVisibility = mix(1.0, ambientVisibility, aoWeight);
+  materialAmbientVisibility *= 1.0 - reliefClass.y *
+    mix(0.070, 0.270, smoothstep(0.08, 0.74, lightField));
 
   if (u_debug_mode == 1) {
-    outColor = vec4(shadingNormal * 0.5 + 0.5, 1.0);
+    outColor = vec4(directNormal * 0.5 + 0.5, 1.0);
     return;
   }
   if (u_debug_mode == 2) {
     outColor = vec4(
-      clamp(directIrradiance * 0.42, 0.0, 1.0),
       directVisibility,
-      ambientLevel * materialAmbientVisibility,
+      directVisibility,
+      selfVisibility,
       1.0
     );
     return;
   }
 
-  float albedoVariation = 0.92 + 0.13 * fbm(p * 2.2 + vec2(0.7, 1.9));
-  vec3 baseAlbedo = vec3(0.205, 0.355, 0.405) * albedoVariation;
-  vec3 obliqueAmbientSpectrum = mix(
-    vec3(0.34, 0.61, 0.72),
-    vec3(0.48, 0.68, 0.72),
-    lowerCoolReturn * 0.34
+  vec3 baseAlbedo = vec3(0.182, 0.194, 0.196);
+
+  // Layered's palette is interpreted as incident chromaticity. Scalar fields
+  // carry all energy, so no palette anchor is a finished output color.
+  vec3 coolBaseSource = vec3(0.568858, 1.098159, 1.297191);
+  vec3 coolDeepSource = vec3(0.197203, 1.160502, 1.774007);
+  vec3 coolPaleSource = vec3(0.812826, 1.055575, 1.000642);
+  vec3 veilBlueSource = vec3(0.654004, 1.093420, 1.093420);
+  vec3 lowerReturnSource = coolDeepSource;
+  float ambientDepth = clamp(
+    upperShadow * 0.72 + edgeOcclusion * 0.18 + contactShadow * 0.10,
+    0.0,
+    0.90
   );
-  vec3 ambientSpectrum = mix(
-    obliqueAmbientSpectrum,
-    vec3(0.54, 0.69, 0.70),
-    smoothstep(0.14, 0.78, incidence) * 0.58
+  vec3 ambientChromaticity = mix(coolBaseSource, coolDeepSource, ambientDepth);
+  float ambientPaleWeight = clamp(
+    lowerCoolReturn * 0.25 + incidence * 0.42,
+    0.0,
+    0.48
   );
-  float coreHeat = smoothstep(
-    0.18,
-    0.92,
-    opticalHaloCore + hotCore * 0.72 + apertureSpark * 0.42
+  ambientChromaticity = mix(
+    ambientChromaticity,
+    coolPaleSource,
+    ambientPaleWeight
   );
-  vec3 obliqueDirectSpectrum = mix(
-    vec3(4.46, 1.52, 0.44),
-    vec3(4.58, 2.36, 1.62),
-    coreHeat
+  ambientChromaticity = mix(
+    ambientChromaticity,
+    veilBlueSource,
+    smoothstep(0.12, 0.82, lowerBlueVeil) * 0.08
   );
-  vec3 frontalDirectSpectrum = mix(
-    vec3(3.00, 2.10, 1.36),
-    vec3(3.72, 2.66, 2.08),
-    coreHeat
+
+  vec3 warmLightSource = vec3(1.149703, 0.985890, 0.698953);
+  vec3 warmPeakSource = vec3(1.180123, 0.979799, 0.669713);
+  vec3 veilCreamSource = vec3(1.165457, 0.988264, 0.629046);
+  vec3 apertureWarmSource = vec3(1.463072, 0.926567, 0.363851);
+  vec3 hotWhiteSource = vec3(1.130919, 0.991032, 0.703334);
+  vec3 frontalWarmSource = mix(veilCreamSource, apertureWarmSource, 0.18);
+  vec3 broadEmitterSpectrum = mix(
+    warmLightSource * 0.72 + veilCreamSource * 0.28,
+    frontalWarmSource,
+    incidence * 0.36
   );
-  vec3 directSpectrum = mix(
-    obliqueDirectSpectrum,
-    frontalDirectSpectrum,
-    smoothstep(0.12, 0.68, incidence) * 0.72
-  );
+  vec3 broadEmitterChromaticity = broadEmitterSpectrum /
+    max(luminance(broadEmitterSpectrum), 0.0001);
+  vec3 coreEmitterSpectrum = hotWhiteSource * 0.68 +
+    warmPeakSource * 0.32;
+  vec3 coreEmitterChromaticity = coreEmitterSpectrum /
+    max(luminance(coreEmitterSpectrum), 0.0001);
+  float broadMacroEnergy = bottomCut *
+    (0.28 + core * 0.72 + warmVeilProfile * 0.18 +
+      opticalHaloOuterProfile * 0.08) *
+    (0.82 + 0.18 * smoothstep(0.05, 0.92, uv.x));
+  float coreMacroEnergy = bottomCut *
+    (hotCoreProfile + apertureProfile * 0.14 +
+      opticalHaloCoreProfile * 0.10);
+  float broadEmitterLuminance = 14.0 * broadMacroEnergy;
+  float coreEmitterLuminance = 1550.0 * coreMacroEnergy;
+  vec3 broadEmitterRadiance = broadEmitterChromaticity *
+    broadEmitterLuminance;
+  vec3 coreEmitterRadiance = coreEmitterChromaticity *
+    coreEmitterLuminance;
 
   // intent: DEC-011 (Site/first-view-light-shader) — one radiance path keeps diffuse, specular, shadow, and saturation causally connected.
-  vec3 ambientRadiance = baseAlbedo * ambientSpectrum * ambientDiffuse *
-    ambientLevel * materialAmbientVisibility;
-  vec3 diffuseRadiance = baseAlbedo * directSpectrum * directNoL *
-    directIrradiance * mix(1.0, 0.82, incidence);
-  vec3 specularRadiance = directSpectrum * specularBrdf * directNoL *
-    directIrradiance * mix(1.0, 0.82, incidence) * 0.42;
+  // intent: DEC-013 (Site/first-view-light-shader) — the broad disk carries base radiance and the concentric core carries a fixed radiance increment; neither path compensates energy lost to occlusion.
+  float frontalBounceEnergy = incidence * incidence *
+    (0.08 + core * 0.16 + frontalFill * 0.10 +
+      upperApertureSkin * 0.08 + innerWarmShelf * 0.06);
+  vec3 frontalBounceSource = mix(
+    veilCreamSource,
+    apertureWarmSource,
+    0.18
+  );
+  vec3 ambientIncident = ambientChromaticity * ambientLevel +
+    frontalBounceSource * frontalBounceEnergy;
+  vec3 ambientRadiance = baseAlbedo * ambientIncident * ambientDiffuse *
+    materialAmbientVisibility;
+  vec3 diffuseRadiance = baseAlbedo / PI * materialDirectVisibility *
+    (broadEmitterRadiance * areaMaterial.x +
+      coreEmitterRadiance * coreAreaMaterial.x);
+  vec3 specularRadiance = materialDirectVisibility *
+    (broadEmitterRadiance * areaMaterial.z +
+      coreEmitterRadiance * coreAreaMaterial.z);
   vec3 sceneRadiance = ambientRadiance + diffuseRadiance + specularRadiance;
 
+  float glareProfile = exp(-pow(
+    (d + 0.098) / mix(0.325, 0.455, incidence),
+    2.0
+  )) * exp(-pow((uv.x - 0.64) / 0.76, 2.0));
+  float glarePsfRadius = mix(0.325, 0.455, incidence) * 0.42;
+  float glareThroughOccluder = diskSourceVisibility(
+    occluderDistance /
+      max(sourceProjectionRadius + glarePsfRadius, 0.0001)
+  );
+  vec3 glareSpectrum = warmPeakSource * 0.45 +
+    hotWhiteSource * 0.55;
+  vec3 glareChromaticity = glareSpectrum /
+    max(luminance(glareSpectrum), 0.0001);
+  float coreProjectedSolidAngle = PI * coreSourceRadius * coreSourceRadius *
+    sourceVector.z * sourceVector.z /
+    max(sourceDistanceSquared * sourceDistanceSquared, 0.0001);
+  float glareSourceEnergy = coreEmitterLuminance *
+    coreProjectedSolidAngle * glareThroughOccluder;
+  // intent: DEC-013 (Site/first-view-light-shader) — the HDR core's analytic PSF may cross the shared occluder only within its derived radius; a hidden source cannot retain an unrelated glare floor.
+  sceneRadiance += glareChromaticity * glareProfile *
+    glareSourceEnergy * 0.010;
+
   // A broad, low-energy cool return is environmental fill, not a painted overlay.
-  sceneRadiance += baseAlbedo * vec3(0.10, 0.20, 0.24) * lowerBlueVeil * 0.24;
+  sceneRadiance += baseAlbedo * lowerReturnSource * lowerBlueVeil *
+    mix(0.230, 0.020, incidence);
   float vignette = smoothstep(1.05, 0.16, length((uv - 0.5) * vec2(0.82, 1.04)));
   sceneRadiance *= mix(0.88, 1.04, vignette);
 
-  // The scene stays above display white until this sensor-like shoulder and clip.
   // Bloom remains a later, separate stage so it cannot disguise transport errors.
-  vec3 exposed = max(sceneRadiance, 0.0) * vec3(1.08, 1.01, 0.90);
-  vec3 shouldered = exposed / (vec3(1.0) + exposed * 0.28);
-  vec3 color = pow(clamp(shouldered, 0.0, 1.0), vec3(1.0 / 2.2));
+  float sensorExposure = exp2(pow(u_exit_wash, 1.50) * 5.0);
+  vec3 color = sensorResponse(sceneRadiance * sensorExposure);
   // intent: DEC-005 (Site/first-view-light-shader) — the shared white surface connects the First View to Principle.
-  // intent: DEC-005 (Site/first-view-light-shader) — scroll-synchronous wash keeps reverse navigation deterministic.
-  color = mix(color, vec3(1.0), u_exit_wash);
+  // intent: DEC-012 (Site/first-view-light-shader) — exit white is reached by scroll-synchronous sensor overexposure, preserving scene contrast until each channel actually saturates.
   outColor = vec4(color, 1.0);
 }

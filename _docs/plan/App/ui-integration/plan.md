@@ -1,10 +1,11 @@
 ---
 title: "Plan: Integrate @otibo/ui design system into otibo.dev"
-status: proposed
+status: superseded
 draft_status: n/a
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/plan/App/otibo-ui-0-3-migration/plan.md"
   - "_docs/intent/App/ui-integration/decision.md"
   - "_docs/qa/App/ui-integration/test-plan.md"
 related_issues: []

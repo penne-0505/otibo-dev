@@ -25,7 +25,7 @@ system-first baselineをlocalhostで確認できる状態にした。
 
 ## Verification Verdict
 
-**Verdict: PASS**
+Verdict: PASS
 
 - **Rationale**: 全AC / INVをautomated gate、static review、desktop / mobile / legalの
   browser QAで確認した。system適用結果として観察された密度差は不具合ではなく、次のvisual tuningの

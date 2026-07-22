@@ -6,7 +6,7 @@ qa_status: planned
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-20
+updated_at: 2026-07-22
 references:
   - "_docs/intent/Site/first-view-light-shader/decision.md"
   - "_docs/plan/Site/first-view-light-shader/plan.md"
@@ -85,6 +85,8 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - AC-034: 本線3000のmacro compositionを不変に保ち、Lambert、局所roughness付き低強度GGX、ambient-only AO、必要時のみ弱いlocal self-shadowを累積checkpointとして比較できる。各案はshader以外のasset / engine / policy / wordmarkを共有し、有限面光源・world-space遮蔽物・bloom・最終RGB maskを含まない。
 - AC-035: 採用3019のshaderが本線3000へbyte-identicalに収束し、height map / engine / policy / wordmarkは比較時から変わらない。写真背景3020は原本hashを保ち、canvas / shader / overlay / filterを持たない独立3001としてdesktop / mobileで再確認できる。
 - AC-036: 3019をチェックポイントとして保全し、3000の光帯の重心・方向・白芯位置を維持したまま、完成RGBのmixをambient + visibility × direct BRDFへ置き換える。height mapはnormal / roughness / ambient visibilityだけを介し、固定scroll位置の決定性、desktop / mobile、exit washを維持する。
+- AC-037: Layeredの寒色背景、cream色の中間光、暖色高輝度域、白芯への色軌跡を、完成RGBではなく正規化した入射chromaticityとsensor responseから再構成する。height mapはnormal / roughness / ambient visibility / bounded direct self-visibilityだけを介してradianceへ作用し、teal-green偏り、赤橙の帯、白芯への唐突な遷移を解消する。macro構図、固定scroll位置の決定性、desktop / mobile、exit washを維持する。
+- AC-038: DEC-012のcheckpointを保全し、macro field内の半影、fragmentごとの入射方向、height-mapのdirect response、高輝度radiance由来glareを一つの仮想面光源と遮蔽物へ接続する。同心の広い面光源 / 小coreをsample単位で積分し、狭いcoreは正規化後も同じsource coverageを保持する。可視microstructureは単一のcanonical height近傍から得るnormal / curvature / roughness / tangent / visibilityだけで構成する。sourceの正面化と一緒にcanonical normalのbase responseを弱めず、方向とradianceだけからscroll時のdetail変化を導く。desktop / mobileの進捗0・中間・wash前で、境界softness、凹凸の明暗、白芯周辺のにじみが同じ光源方向へ同意し、中間光部が描き足した線、固定周期、孤立glint、画面空間grainではなく、暗い谷と方向整合した微細反射として読める。終端白は完成RGBのwhite mixでなくscene exposureとsensor saturationから到達する。Layeredの斜め構図、寒色背景、cream→暖色→飽和白の階層、決定性、responsive、exit washを維持する。定量値は回帰guardrailとし、採否は目視を優先する。
 
 ## Decision Review Scope
 
@@ -99,6 +101,7 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - DEC-009: 3000のmacro compositionを固定し、heightからradianceへのmaterial responseだけを物理化する境界をreviewする。
 - DEC-010: 採用3019と写真案を折衷せず、canonical 3000と独立対照3001へ分ける収束をreviewする。
 - DEC-011: macro fieldを完成色ではなくirradiance / visibilityとして再解釈し、materialからの出射光を一つのradiance計算へ統合することをreviewする。
+- DEC-012: Layeredのpalette anchorをenergyから分離した入射chromaticityとsensor responseとして扱い、bounded self-visibilityをdirect項だけへ接続することをreviewする。
 
 ## Intent-derived Invariants
 
@@ -168,6 +171,8 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 | AC-034 | owner direction | 3000光場と物理material responseのhybrid比較 | Static + Quantitative + Browser + Manual | 3000 / Lambert / GGX / AO / optional self-shadowのshader・asset hash、desktop progress 0 / 0.501 / 0.74 / 0.87 / 1.00、mobile初期像、時間差capture、ROI / edge / centroid / frame時間 | 3000とasset / engine / policy / wordmarkを共有し、light mask IoU 0.99以上、輝度重心差が画面対角0.5%以内、white / near-white面積差が相対10%以内を初期guardrailとする。照射面と背景の高周波応答が増え、孤立glint、物体化、scroll時の構図変化を作らない | verified |
 | AC-035 | owner decision | 3019採用と写真案の独立保全 | Hash + Diff + Browser + Build | rootと3019のshader hash、3001の写真hash / DOM / computed style、1440x900 / 390x844、scroll進捗、active listener、標準test / build | 3000 shaderが3019とbyte一致し、他runtime assetは不変。3001は原本写真とwordmarkだけを表示し、canvas / overlay / filterなし。active review portは3000 / 3001へ収束する | verified |
 | AC-036 | owner direction | radiance transport統合 | Static + Shader compile + Browser + Manual | 3019 checkpointと現行shaderのdiff、debug light field、1440x900 / 390x844、progress 0 / mid / exit、時間差capture | 完成RGB mix・height直接加算・影色減算がなく、ambient + visibility × direct BRDFから像を作る。macro重心・方向・白芯位置、決定性、responsive、exit washを維持する | verified |
+| AC-037 | owner critique | Layered色軌跡と局所光輸送の収束 | Static + Shader compile + Browser + Quantitative + Manual | Layered / Radiance / checkpointの1440x900・390x844、progress 0 / mid / exit、背景・中間光・白芯ROI、edge / high-frequency response、時間差capture | palette anchorを完成RGBへ戻さず、入射chromaticityとsensor responseから寒色背景→cream→暖色→白を連続して作る。bounded self-visibilityはdirect項だけへ作用し、macro構図、決定性、responsive、exit washを維持する | verified |
+| AC-038 | owner review | 同一scene由来の照明整合と中間光の微細表現 | Static + Shader compile + Browser + Visual review | DEC-012 checkpoint、checkpoint 50、固定emitter候補の1600x900・390x844、progress 0 / 約0.43 / 約0.71 / 0.76〜0.91 / 1.00、settled capture、source / output hash | emitter radianceは固定で、遮蔽で失ったcore energyをbroad lobe / ambientへ補償しない。broad / coreは別BRDF pathを保ち、完全露出coreは密な飽和白芯、部分遮蔽はcream→暖色→白のladderを作る。microhighlightはhalf-vectorと揃うfacet群だけに現れ、白点noiseにならない。背景と照射域のcontrast、高周波の焦点階層、Layeredの構図・色階層・終端whiteを同時に保ち、owner採否を得る | planned |
 | INV-003 | DEC-001 | diagnostic opt-in境界 | E2E + Static | default URLと開発opt-in URL | defaultへdiagnostic state / controlが漏れない | verified |
 | INV-005 | DEC-003 | WebGL failure fallback | Integration | WebGL2 null、compile error、`WEBGL_lose_context` | 全対象経路でfallbackと`otibo`が読める | verified |
 | INV-008 | DEC-003 | asset-only deployment | Build + Deployment | `npm run build && npm run deploy:dry-run` | Worker scriptなしでstatic outputを受理する | verified |
@@ -218,6 +223,11 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - [x] L2の微細影はheight mapの起伏と光源方向に従属し、L3のglareは計算済み直射高輝度域の周囲だけへ現れる。
 - [x] オーナーが3000との比較後に3019を採用し、baselineの良さを消さず改善していると判断した。
 - [x] オーナーが写真背景3020を独立方向として保持する価値があると判断した。
+- [x] 進捗0 / 中間 / wash前の境界softness、凹凸の明暗、白芯周辺のにじみから、同じ光源位置と遮蔽物を矛盾なく推定できる。
+- [ ] desktop / mobileの初見で、規則的なheight patternへ明るい帯を塗った像より先に、静止面へ実際の光が当たる光景として読める。
+- [ ] 進捗0のdesktop / mobileで、暖色ladderに囲まれた密な飽和白芯があり、広いwhite washではなく局所的なsensor clippingとして読める。
+- [ ] 中間光部のmicrohighlightが一様な白点noiseではなく、同じ光源half-vectorへ揃うfacet群の帯・patchとして選択的に現れる。
+- [ ] 寒色背景、半影、照射域、飽和白芯の局所contrastが分離し、material情報量の増加がぼけ・低contrastではなく高解像感として読める。
 
 ## Regression Checklist
 
@@ -266,6 +276,17 @@ ambientを計算し、L2は同じsceneへheight-map自己遮蔽だけ、L3は同
 - [x] root 3000のshaderが採用3019とbyte一致し、height map / engine / policy / wordmarkに収束起因の差分がない。
 - [x] 3001は提供写真とwordmark以外のcanvas / shader / fallback / overlay / filterを表示しない。
 - [x] 3008〜3020の探索listenerを停止し、3000 / 3001だけを最終レビュー入口として維持する。
+- [x] AC-038のarea transportは固定sample patternを使い、各sampleで遮蔽・距離・emitter / receiver cosine・GGXを積分してからmacro energyへ接続している。
+- [x] checkpoint 29を人工的な線 / 粒の表面形状として不採用にし、checkpoint 30〜47で可視microstructureを単一canonical height近傍へ収束した。
+- [x] checkpoint 50のdesktop / mobileで進捗0・中間・wash前・露光上昇・surface whiteを目視し、構図・色階層・wordmark / wash policy・横overflow 0を維持している。
+- [x] checkpoint 50のsettled固定位置二captureがbyte一致し、render countも不変である。追加checkpoint serverを起動せず、Browserのviewport overrideをresetしてQA tabを閉じる。
+- [x] 狭いcore responseは同じ遮蔽物のsource coverageへ従い、遮蔽で失うenergyを広い粗いlobe以外へ再配置していない。
+- [x] glareは同じ遮蔽物の投影距離と解析PSF半径から可視率を求め、完全に隠れたsourceへ独立した輝度floorを残していない。
+- [x] 終端白は完成RGBのwhite mixを持たず、scene radianceへのscroll同期露光とsensor responseだけで全面飽和へ到達する。
+- [x] broad / core radiance path間に遮蔽energyの補償がなく、各pathの未正規化source coverage / solid angleが受光量を決める。
+- [x] checkpoint 52のdesktop / mobileで進捗0・中間・wash前・露光上昇・surface whiteを実見し、密な飽和白芯、cream→暖色→白のladder、暗い背景とのcontrast、連続した材質highlight、横overflowなしを確認する。
+- [x] checkpoint 52のdesktop初期像を1.2秒離してcaptureし、byte一致と時間入力なしを確認する。
+- [ ] 固定emitter候補の最終像についてowner採否を得る（checkpoint 50は不採用、checkpoint 52は実装・内部目視・構造QA済み）。
 
 ## High-risk Checklist
 

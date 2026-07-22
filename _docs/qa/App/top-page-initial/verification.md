@@ -1,12 +1,13 @@
 ---
 title: "QA Verification: Initial otibo.dev top page implementation"
-status: active
+status: superseded
 draft_status: n/a
-qa_status: verified
+qa_status: partial
 risk: Medium
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/qa/Site/top-page-rebuild/verification.md"
   - "_docs/intent/App/top-page-initial/decision.md"
   - "_docs/plan/App/top-page-initial/plan.md"
   - "_docs/qa/App/top-page-initial/test-plan.md"
@@ -24,9 +25,12 @@ font は library token `fonts.body` / `fonts.display` 経由で `Gen Interface J
 
 ## Verification Verdict
 
-**Verdict: PASS**
+Verdict: PARTIAL
 
-全 AC(001〜008)と全 INV(001〜011)が満たされている。理念.md grain との照合、library motion-grammar 準拠、Server Component 境界保持、a11y 配線、扇情語句不在、すべて確認済。
+自動検証とsource reviewでは全AC(001〜008)と全INV(001〜011)を満たしたが、
+中心的なvisual / motionの実ブラウザ確認とオーナー判定を実施していない。
+この初版は後継`Site/top-page-rebuild`に置き換えられており、未確認事項は
+後継QAで扱う。
 
 ## Commands Run
 

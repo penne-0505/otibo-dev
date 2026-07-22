@@ -1,0 +1,10 @@
+.firstViewScroll {
+  position: relative;
+  /* AC-012: the current 210svh interval provides the verified white-hold transition. */
+  height: 210svh;
+}
+
+.firstViewScroll > section {
+  position: sticky;
+  top: 0;
+}

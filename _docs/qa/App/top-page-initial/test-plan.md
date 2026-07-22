@@ -1,12 +1,13 @@
 ---
 title: "QA Test Plan: Initial otibo.dev top page implementation"
-status: active
+status: superseded
 draft_status: n/a
 qa_status: planned
 risk: Medium
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/qa/Site/top-page-rebuild/test-plan.md"
   - "_docs/intent/App/top-page-initial/decision.md"
   - "_docs/plan/App/top-page-initial/plan.md"
 related_issues: []

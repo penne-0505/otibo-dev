@@ -1,12 +1,13 @@
 ---
 title: "QA Verification: Initial Next.js + Panda scaffold for otibo.dev"
-status: active
+status: superseded
 draft_status: n/a
 qa_status: verified
 risk: Medium
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/qa/App/workers-static-export-next16/verification.md"
   - "_docs/intent/App/scaffold/decision.md"
   - "_docs/plan/App/scaffold/plan.md"
   - "_docs/qa/App/scaffold/test-plan.md"
@@ -22,7 +23,7 @@ otibo.dev の scaffold を Next.js 14 App Router + Panda CSS + TypeScript strict
 
 ## Verification Verdict
 
-**Verdict: PASS**
+Verdict: PASS
 
 全 AC(001〜004)と全 INV(001〜006)が満たされている。
 
@@ -114,7 +115,7 @@ secret audit: 0 件
 
 deferred なし。本 task scope は完全に網羅。
 
-## Residual Risks
+### Historical follow-up context (not residual to scoped PASS)
 
 - **`@otibo/ui` 統合は未確認**(App-Feat-11 の scope)。本 task で立てた `panda.config.ts` の `presets: []` に `otiboPreset` を載せる作業が次の task。preset interface に齟齬がある場合は本 task の panda.config 構造を見直す可能性あり。
 - **deployment 設定なし**:`next build` は通るが Cloudflare Pages / Vercel の deploy target に応じた設定(output mode、domain など)は別 task。
@@ -122,6 +123,13 @@ deferred なし。本 task scope は完全に網羅。
 - **test framework なし**:vitest / playwright 等の導入は別 task。lint + typecheck + build が信頼の主な担保。
 - **npm audit 10 件の脆弱性報告**:`npm install` の summary で `8 moderate, 2 high` の警告あり。Next.js / dev tool の transitive。本 task scope では fix しない(local dev のみで影響なし、別 task で評価)。
 - **`reactStrictMode: true`** は有効。client component 側で side effect の二重実行が起こる可能性があるが、本 task では client component なしのため未顕在。
+- 上記はscaffoldの検証scope外に置いた後続条件であり、当時のminimal
+  scaffoldに対する未達条件ではない。現行framework / deployment
+  baselineは後継`App/workers-static-export-next16`を正本とする。
+
+## Residual Risks
+
+None
 
 ## Follow-up TODOs
 

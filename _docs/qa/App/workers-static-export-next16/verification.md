@@ -4,8 +4,9 @@ status: active
 draft_status: n/a
 qa_status: partial
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-10
+updated_at: 2026-07-17
 references:
   - "_docs/qa/App/workers-static-export-next16/test-plan.md"
   - "_docs/intent/App/workers-static-export-next16/decision.md"
@@ -28,7 +29,7 @@ upstream follow-up として分離する。
 
 ## Verification Verdict
 
-**Verdict: PARTIAL**
+Verdict: PARTIAL
 
 - **Rationale**: 全 AC / INV は成立するが、production dependency audit に安全な local fix のない
   upstream PostCSS advisory が残る。`App-Chore-16` で追跡する。
@@ -81,13 +82,20 @@ curl <Workers local route>
 - AC-005: PASS — `package.json` と `QUICKSTART.md` に Node >=22 と build variable 境界を記録。
 - AC-006: PASS — `wrangler.jsonc` は assets directory のみで main / adapter / binding なし。
 
+## Decision Conformance
+
+| ID | Result | Why the implementation remains aligned |
+| --- | --- | --- |
+| DEC-001 | PASS | `output: "export"`の`out/`をWrangler assets directoryへ渡した。 |
+| DEC-002 | PASS | Worker script、OpenNext、runtime bindingを導入しなかった。 |
+| DEC-003 | PASS | environment valuesをbuild-time valueとして実装・文書化した。 |
+| DEC-004 | PASS | declared Node engineとlockfile内Wranglerで全gateを実行した。 |
+
 ## Invariant Coverage
 
 - INV-001: PASS — `next.config.mjs` の `output: "export"` と `out/` artifact を確認。
 - INV-002: PASS — dry-run の `No bindings found` と config diff を確認。
 - INV-003: PASS — environment values は build-time value として文書化。
-- INV-004: PASS — Node engine と local Wrangler script / lockfile を確認。
-- INV-005: PASS — dependency、codegen、build、dry-run の順で全 gate が成功。
 
 ## Deferred / Not Covered
 

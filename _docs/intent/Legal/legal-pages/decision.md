@@ -2,8 +2,9 @@
 title: "Intent: Legal pages for Medo / Sarae / otibo"
 status: active
 draft_status: n/a
+intent_schema: 2
 created_at: 2026-07-03
-updated_at: 2026-07-03
+updated_at: 2026-07-17
 references:
   - "_docs/plan/Legal/legal-pages/plan.md"
   - "_docs/qa/Legal/legal-pages/test-plan.md"
@@ -23,52 +24,76 @@ Medo の事前登録・リリースにはプライバシーポリシー / 利用
 
 本 intent は法務ページ群の設計判断を記録する。法制度(特商法の記載要件・省略可否等)に関する記述は本文書内で断定せず、**オーナーが最終確認する(必要に応じて専門家確認)**という位置づけに統一する。本文書は法的助言をしない。
 
-## Decision
+## Decisions
 
-### 1. 作業フロー: ドラフト往復モデル
+### DEC-001: オーナー確認を公開gateにする
 
-法的記載内容の正確性はオーナーにしか確認できない。よって「エージェントがドラフト → オーナーが事実確認 → 反映」の往復を基本サイクルとし、**オーナー未確認の事実記述は公開しない**。ドラフト中の未確認箇所には明示的なマーカーを付け、マーカー残存ゼロを公開の前提条件とする。
+- **What**: エージェントがdraftし、オーナーが事実確認して反映する。
+  未確認markerが残る文書は公開しない。
+- **Why**: 取得データ、事業者情報、削除手順などの事実性はオーナーしか
+  最終確認できず、未確認公開は虚偽記載につながるため。
+- **Change freedom**: draft形式やreview toolは変更できる。事実確認の責任と
+  marker残存ゼロの公開gateは維持する。
+- **Why not**: エージェントによる一括作成・即公開では、確認責任を代替できない。
 
-### 2. route 構造
+### DEC-002: 現在の実態から新規に書き起こす
 
-| Route | 内容 |
-| --- | --- |
-| `/medo/privacy` | Medo プライバシーポリシー |
-| `/medo/terms` | Medo 利用規約 |
-| `/medo/account-deletion` | Medo アカウント削除手順(※) |
-| `/tokushoho` | otibo 特定商取引法に基づく表記 |
-| Sarae 用ページ | placeholder(「準備中」明示)— オーナー確定 2026-07-03(ロゴ未整備) |
-| Stash 用ページ | placeholder(「準備中」明示)— オーナー指示 2026-07-03 で追加(repo: `/home/penne/dev/active/stash`) |
+- **What**: 旧法的文書を復旧・流用せず、新規に書く。発見済み旧draftは
+  事実関係の参照資料としてのみ使う。
+- **Why**: 旧draftは未公開で継承義務がなく、現在の取得データと手順との一致を
+  一から検証できるため。
+- **Change freedom**: 参照資料は追加できる。公開済み文書の将来改訂は、
+  現行文書からの差分として扱う。
+- **Revisit when**: 公開済み文書との継続性を守る必要が生じた場合。
 
-ストア審査等に URL を提出した後は URL を変えない。route 構造は公開前に確定させる。
+### DEC-003: 法務routeと公開後のURLを安定させる
 
-(※)**確定(2026-07-03、survey 調査 A)**: Google Play の一次情報により、`/medo/account-deletion` は**静的な説明ページ + 削除リクエスト導線(mailto またはフォーム)で要件を満たせる**。web 側の削除機能実装は不要。Play の要件 3 点(エラーなく読み込み / 削除導線が目立つ形 / アプリ名 or デベロッパー名参照可能)と、サブスク解約手順の明示(課金解約と削除は独立要件)を必須記載とする(Plan F-006 / F-007)。
+- **What**: Medo 3 route、`/tokushoho`、Sarae / Stashのplaceholderを
+  otibo.devで配信し、ストア等へ提出したURLは変更しない。
+- **Why**: store reviewとユーザー導線が公開URLを外部参照するため。
+- **Change freedom**: URL内の内容、layout、CTAは要件を保って更新できる。
+  新productのrouteは別判断で追加できる。
 
-### 3. 共通 layout と UI 供給元
+`/medo/account-deletion`は静的説明と削除request導線を持ち、Play要件の
+読み込み可能性、目立つ削除導線、appまたはdeveloper名参照を満たす。
 
-- サイトパーパス intent INV-005 に従い、`@otibo/ui`(core-ui)の consumer として構成する。法務ページ専用の見せる系 component が必要になれば、ページ駆動でゼロベース設計する。
-- 長文読書面の typography は otibo-ui 側の **16px long-form reading grammar**(otibo-ui commit `839c11f`)を参照候補とする。採用可否は実装時に判断し、結果を本 intent に追記する。
+### DEC-004: legal reading surfaceをapplication側で構成する
 
-### 4. SEO meta
+- **What**: `@otibo/ui`のconsumerとしてprimitiveを使い、法務固有の
+  reading compositionはsite側で構成する。
+- **Why**: site全体のUI基盤と整合しながら、長文法務面の情報構造を
+  library componentへ固定しないため。
+- **Change freedom**: typography値、CSS Module構成、利用primitiveは変更できる。
 
-各法務ページの noindex 等は「明示的な決定」に基づいて設定する。放置デフォルトにしない。決定はオーナーと行う(法務ページを検索流入させるかはブランド判断を含むため)。
+### DEC-005: robots policyをページごとに明示する
 
-### 5. 個人情報の掲載範囲
+- **What**: 各法務ページのindex / followを放置defaultにせず、
+  ページの公開目的に基づいて設定する。
+- **Why**: 法務ページの検索露出はstore審査上の参照性とbrandの見え方に
+  影響するため。
+- **Change freedom**: product statusや公開目的が変われば、owner reviewを経て
+  個別ページのrobots値を変更できる。
 
-特商法表記に載せる事業者情報(氏名・住所・電話番号)の公開範囲と、「請求があったら遅滞なく開示する」方式による省略の採否は**オーナーが決定する**。決定した範囲を超える個人情報を、ページにもリポジトリ(docs / commit 含む)にも書き込まない。
+### DEC-006: 個人情報の公開境界をオーナー決定に限定する
 
-## Alternatives
+- **What**: 氏名、住所、電話番号の公開範囲はオーナーが決定し、
+  その範囲を超える実値をpageにもrepositoryにも書かない。
+- **Why**: 法務要件の確認と不要な個人情報露出の抑制を両立するため。
+- **Change freedom**: 公開方法はowner decisionと必要な専門家確認に基づき変更できる。
 
-- **旧テキストの復旧(jj reflog 等)/ backcast 既存ドラフトの移設**: 不採用(オーナー確定 2026-07-03。backcast の現物発見を受けた再判断でも**新規書き起こし維持**で確定)。新規書き起こしの方が現在の実態(取得データ・手順)との整合を一から検証でき、実態と異なる古い記載を引き継ぐリスクがない。既存ドラフトは公開実績がなく引き継ぎ義務なし。**事実関係の参照資料としてのみ利用可**(対象年齢 13 歳等)。
-- **外部の規約ジェネレータ / テンプレートの丸写し**: 不採用。実態と乖離した網羅的記載(取得していないデータの列挙等)は「実態と異なる記載を含まない」原則に反する。一般的構成の参考にとどめる。
-- **エージェントによる一括作成・即公開**: 不採用。法的記載の正確性はオーナーにしか確認できず、未確認公開は虚偽記載リスクを負う。ドラフト往復モデルを採る。
-- **法務ページを別ドメイン / 外部サービスに置く**: 不採用。otibo.dev が法務ページの配信先であることはサイトパーパス intent の初期スコープで確定済み。
+### DEC-007: 未完成productを完成済みに見せない
 
-## Rationale
+- **What**: Sarae / Stashの未完成ページは「準備中」を明示する。
+- **Why**: 実在する現在のproduct statusを率直に示し、公開済み法務文書と
+  誤認させないため。
+- **Change freedom**: 正式文書が完成した時点でplaceholderを置換できる。
 
-- ドラフト往復モデルは、エージェントの作業速度とオーナーの事実確認責任を分離し、それぞれの強みに割り当てる。法的文書は「正確さ > 速さ」であり、往復コストは正当化される。
-- 新規書き起こしは作業量が増えるが、Medo の現在の実態(事前登録の収集項目等)を起点に書くため、記載と実態の一致を構造的に保証しやすい。
-- SEO meta を明示的決定にするのは、法務ページの検索露出がブランドの見え方(サイトパーパス intent の「今を正直に映す」)に影響するため。
+### DEC-008: 法制度の解釈をagentが確定しない
+
+- **What**: 文書と実装は法制度の解釈を断定せず、オーナーが最終判断し、
+  必要に応じて専門家へ確認する。
+- **Why**: repositoryのdecision recordは法的助言を代替できないため。
+- **Change freedom**: authoritative sourceと専門家確認に基づく確定事実は記載できる。
 
 ## Consequences / Impact
 
@@ -84,19 +109,21 @@ Medo の事前登録・リリースにはプライバシーポリシー / 利用
 
 ## Intent-derived Invariants
 
-- INV-001: 法務ページの事実記述(取得データ・事業者情報・削除手順・連絡先等)は、オーナー確認済みの内容のみを公開する。未確認マーカーが残存する状態で公開しない。
-- INV-002: 法的文書は新規書き起こしであり、旧テキストを復旧・流用しない(サイトパーパス intent INV-006 の継承)。※backcast の現物発見による再判断は完了 — **新規書き起こし維持で確定(2026-07-03、オーナー判断)**。既存ドラフトは事実関係の参照資料としてのみ利用可。
-- INV-003: 法務ページは実態と異なる記載を含まない(取得していないデータを列挙しない、実在しない手順を書かない)。
-- INV-004: 法務ページの layout は `@otibo/ui`(core-ui)consumer として構成する(サイトパーパス intent INV-005 の継承)。
-- INV-005: 各法務ページの SEO meta(noindex 等)は明示的な決定に基づいて設定されている。
-- INV-006: オーナーが決定した範囲を超える個人情報を、ページ・リポジトリのいずれにも書き込まない。
-- INV-007: placeholder ページは「準備中」であることを明示し、完成済みの体裁を取らない(サイトパーパス intent INV-003 との整合)。
-- INV-008: 本タスクの文書・実装は法制度の解釈を断定しない。記載要件の最終判断はオーナー(必要に応じて専門家)が行う。
+- INV-001 (from DEC-001): オーナー未確認の事実記述や未確認markerを含む法務ページを公開しない。
+- INV-003 (from DEC-001): 公開する法務ページの記述は現在の実態と一致する。
+- INV-006 (from DEC-006): オーナー決定範囲を超える個人情報をpage・repositoryへ書かない。
+- INV-007 (from DEC-007): placeholderページは「準備中」を明示し、完成済みの体裁を取らない。
+- INV-008 (from DEC-008): agentや文書が法制度の解釈を独断で確定しない。
 
 ## Enforced in (optional)
 
-- INV-001 / INV-003: 実装時、未確認箇所マーカーの grep チェックを QA Test Matrix(AC-101)で機械化する。
-- INV-005: 各 page の metadata 定義に決定根拠コメント(`// intent: INV-005 (Legal/legal-pages) — noindex は明示的決定`)を残す。
+- DEC-001 / INV-001 / INV-003: owner review記録と未確認marker grep。
+- DEC-003: route build outputとlive URL verification。
+- DEC-004: shared legal layoutとlibrary import。
+- DEC-005: 各pageのmetadata隣接commentとrendered robots meta。
+- DEC-006 / INV-006: source / build outputの個人情報pattern review。
+- DEC-007 / INV-007: placeholder heading、body、robots meta。
+- DEC-008 / INV-008: ownerによる全文review。
 
 ## Rollback / Follow-ups
 

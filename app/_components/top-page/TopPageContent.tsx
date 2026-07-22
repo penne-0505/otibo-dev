@@ -6,7 +6,6 @@ import {
   LogoFrameFallback,
   LogoFrameImage,
   LogoFrameRoot,
-  MediaFrameEmpty,
   MediaFrameImage,
   MediaFrameRoot,
   ScrollAreaRoot,
@@ -20,35 +19,32 @@ type Product = {
   status: string;
   description: string;
   logo?: string;
-  media: readonly { label: string; src?: string }[];
+  media?: readonly { label: string; src: string }[];
 };
 
-// intent: INV-009 (Site/top-page-rebuild) — visible product facts remain centralized for owner review before publication.
+// intent-invariant: INV-009 (Site/top-page-rebuild) — visible product facts remain centralized for owner review before publication.
 const products: readonly Product[] = [
   {
     name: "Medo",
     status: "プロトタイプ",
     description: "目標時刻から逆算して、行動の流れを組み立てるアプリ。",
     logo: "/products/medo/icon.png",
-    media: [{ label: "Preview 01" }, { label: "Preview 02" }],
   },
   {
     name: "Sarae",
     status: "プロトタイプ",
     description:
       "読んで理解できる英語表現を、自分の英文で使える語彙へ育てるアプリ。",
-    media: [{ label: "Preview 01" }],
   },
   {
     name: "Stash",
     status: "開発中",
     description:
       "私的な画像を端末内に保管し、片手で閲覧・整理する画像管理アプリ。",
-    media: [{ label: "Preview 01" }, { label: "Preview 02" }],
   },
 ];
 
-function ProductMedia({ media }: Pick<Product, "media">) {
+function ProductMedia({ media }: { media: NonNullable<Product["media"]> }) {
   return (
     <ScrollAreaRoot className={styles.productMedia}>
       <ScrollAreaViewport className={styles.mediaViewport}>
@@ -60,11 +56,7 @@ function ProductMedia({ media }: Pick<Product, "media">) {
                 className={styles.mediaFrame}
                 fit="contain"
               >
-                {src ? (
-                  <MediaFrameImage alt={`${label} screen`} src={src} />
-                ) : (
-                  <MediaFrameEmpty>UI image</MediaFrameEmpty>
-                )}
+                <MediaFrameImage alt={`${label} screen`} src={src} />
               </MediaFrameRoot>
             </div>
           ))}
@@ -112,28 +104,37 @@ export function TopPageContent() {
         </header>
 
         <div className={styles.productList}>
-          {products.map((product) => (
-            <article className={styles.product} key={product.name}>
-              <div className={styles.productCopy}>
-                <Badge className={styles.status} tone="neutral">
-                  {product.status}
-                </Badge>
-                <div className={styles.identity}>
-                  <LogoFrameRoot size="lg">
-                    {product.logo ? (
-                      <LogoFrameImage alt="" src={product.logo} />
-                    ) : null}
-                    <LogoFrameFallback aria-hidden="true">
-                      {product.name.slice(0, 1)}
-                    </LogoFrameFallback>
-                  </LogoFrameRoot>
-                  <h3 className={textStyle("display")}>{product.name}</h3>
+          {products.map((product) => {
+            const media = product.media ?? [];
+            const hasMedia = media.length > 0;
+
+            return (
+              <article
+                className={styles.product}
+                data-has-media={hasMedia}
+                key={product.name}
+              >
+                <div className={styles.productCopy}>
+                  <Badge className={styles.status} tone="neutral">
+                    {product.status}
+                  </Badge>
+                  <div className={styles.identity}>
+                    <LogoFrameRoot size="lg">
+                      {product.logo ? (
+                        <LogoFrameImage alt="" src={product.logo} />
+                      ) : null}
+                      <LogoFrameFallback aria-hidden="true">
+                        {product.name.slice(0, 1)}
+                      </LogoFrameFallback>
+                    </LogoFrameRoot>
+                    <h3 className={textStyle("display")}>{product.name}</h3>
+                  </div>
+                  <p className={textStyle("body")}>{product.description}</p>
                 </div>
-                <p className={textStyle("body")}>{product.description}</p>
-              </div>
-              <ProductMedia media={product.media} />
-            </article>
-          ))}
+                {hasMedia ? <ProductMedia media={media} /> : null}
+              </article>
+            );
+          })}
         </div>
       </section>
 

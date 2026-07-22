@@ -6,7 +6,7 @@ qa_status: partial
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-20
+updated_at: 2026-07-22
 references:
   - "_docs/qa/Site/first-view-light-shader/test-plan.md"
   - "_docs/intent/Site/first-view-light-shader/decision.md"
@@ -1169,3 +1169,439 @@ active状態は変更しない。
 - PASS: `bash scripts/check-docs.sh`、対象fileの`git diff --check`。
 - PASS: `docs-cleanup`でPlan / Intent / QAをlive pathへ維持した。`Site-Feat-17`とオーナー採否が未完了のため、
   Plan / handoff draft / checkpoint workspaceはarchiveしていない。
+
+## 2026-07-21 Layered spectral transport and causal material verification
+
+### Implementation and checkpoint evidence
+
+- DEC-011時点のRadiance shaderを
+  `/home/penne/dev/scratch/temp/otibo-first-view-spectrum-transport-20260721/radiance-214156f`へ保全し、
+  SHA-256 `bd04337a0d1140df4f516426605af7a0fb509902671461d9cb074902311f2899`を確認した。
+- spectrum / visibility / sensor / local material responseを10 checkpointで反復し、最終候補を
+  `/home/penne/dev/scratch/temp/otibo-first-view-spectrum-transport-20260721/checkpoint-10-final-candidate`へ
+  sourceとdesktop / mobile capture付きで保全した。canonical shaderとbuild成果物のSHA-256は
+  `b959fcb192e75d718a2783208cfe1b350d89b116e19e7b450b38a381f1578bdb`で一致する。
+- Layeredのcool / cream / warm / hot-white anchorはdisplay colorへ直接mixせず、設計時にlinear化・輝度正規化した
+  incident chromaticityとして使用する。beam / halo / shelf / veilはscalar energyのまま、material albedo、Lambert、
+  ridge / valley別roughness、GGX、ambient visibility、2-step composite-height self-visibilityを一つのscene radianceへ接続した。
+- self-visibilityはdirect visibilityだけを減衰し、macro beamとambientを再描画しない。ambient / direct normalを分け、
+  背景detailを残しながら強い局所応答を照射域へ偏在させた。高輝度はluminance shoulder、warm adaptation、
+  radiance-dependent crosstalk、channel clipを通して白へ収束する。
+- no-bloom像で白芯、halo、色遷移、局所応答が成立したため、transport誤差を隠すmulti-pass bloomは追加していない。
+  DEC-012のrevisit条件を満たすowner比較がある場合だけ、HDR radiance由来のstageとして再検討する。
+
+### Quantitative visual evidence
+
+- desktop `1440x900`初期像で、Layered / finalの背景ROIは
+  `(0.137, 0.261, 0.308)` / `(0.147, 0.274, 0.320)`、白芯ROIは
+  `(0.998, 0.990, 0.881)` / `(0.995, 0.988, 0.882)`だった。白芯の暖色と飽和を保ち、
+  Radianceで生じたteal-green背景、赤橙中間帯、白芯への唐突な色切替を再導入していない。
+- 1.5px blur差分による高周波meanは、Layeredのbackground / edge / lit
+  `0.02648 / 0.03533 / 0.01897`に対してfinalは
+  `0.02473 / 0.03451 / 0.02613`。Layered比約`93% / 98% / 138%`で、背景情報と境界を維持しつつ、
+  照射域だけにheight由来の局所応答が増えた。
+- 94% near-white面積はLayered `0.1423`、final `0.1392`。意図した白飛び面積を維持し、
+  60〜85%の中間輝度域はfinalの方が広く、背景→境界→cream / warm→白の遷移距離を増やした。
+- 同一scroll位置のdesktop初期像2枚はSHA-256
+  `6eab1d41a2999331150e5a61cefa77ae5ab0e49f459faf9cbe5eefa467dba4ff`でbyte-identicalだった。
+
+### Browser, responsive, and exit evidence
+
+- Playwright Chromiumでdesktop `1440x900`とmobile `390x844`を確認した。両viewportでcanvas status `ready`、
+  height map `3072x6144`、texture `R8`、page / shader error `0`だった。
+- desktopはscroll進捗`0.594`の中間像、`0.815` / exit wash `0.203`のlate像、進捗`1.000` / wash `1.000`の
+  surface-white像をcaptureした。mobileも進捗`0.588`、`0.816` / wash `0.207`、`1.000` / wash `1.000`で
+  同じ連続性を確認した。
+- mobile初期像でも光帯の主軸、中央右寄りの白芯、背景detail、右下wordmarkを維持し、lateからexitで
+  materialとwordmarkが同じpolicyに従って白へ消える。
+- checkpointごとの追加serverは停止し、常時listenerを3000 / 3001 / 3011の3つへ戻した。
+
+### Decision conformance
+
+- **DEC-012: PASS.** palette anchorを完成RGBへ戻さずincident chromaticityとsensor responseへ移し、
+  local self-visibilityをdirect項だけへ接続した。L1〜L3のscene geometry、heightのRGB直接加算、影色減算、
+  任意glow、multi-pass bloomは導入していない。
+- **DEC-011: PASS.** macro fieldはirradiance / visibilityとして残り、ambient + diffuse + specularの単一radiance
+  path、deterministic scroll、responsive、exit washを維持した。
+
+### Scoped verdict
+
+**PASS — AC-037 implementation and comparison readiness.** Layeredの構図・暖色階層・白飛びをguardrailとして、
+Radianceの単一光輸送へ正規化chromaticity、bounded self-visibility、ridge response、sensor saturationを統合した。
+desktop / mobile / scroll / exit / determinism / build / deployment compatibilityを確認した。ページ全体の
+production visualと`Site-Feat-17`は別のowner approvalを要するため、文書全体の`PARTIAL` verdictは変更しない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: `npm test` — 2 files / 19 tests、`npm run typecheck`、`npm run lint` — 32 files、fixなし。
+- PASS: `npm run build` — canonical height map current、static 9 routes生成。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: source / `out`のshaderとheight map hash一致。
+
+## 2026-07-21 physical-coherence continuation
+
+オーナーはAC-037の結果を前段からの改善があるcheckpointとして受け入れたが、最終品質としては未承認とした。
+再目視では、色軌跡とmacro構図は維持されている一方、半影、法線応答、白芯周辺のにじみが別々の
+視覚原因として見え、規則的な横方向detailも暗部から照射域まで同じ向きで読めた。scroll中間では
+光源の正面化より画面全体の白washとして知覚される区間が残る。
+
+このためAC-037のscoped PASSは実装・比較準備の証跡として維持し、production visualの完了判定には使わない。
+次段をDEC-013 / AC-038として開き、既存macro fieldを保ったまま半影、fragment入射方向、height response、
+高輝度radiance由来glareを一つの仮想面光源と遮蔽物へ接続する。採否は数値類似度ではなく、desktop / mobile /
+scrollの各像を見たときの物理的整合を優先する。現時点のAC-038 verdictは**IN PROGRESS**である。
+
+## 2026-07-21 finite-source microdetail convergence（superseded）
+
+この節のcheckpoint 29に対するscoped PASSは、後続のowner reviewで撤回された。海面参照の
+「微細さゆえの圧巻さ」を波状の表面形状として扱ったため、光の中へ人工的な線と粒を描いた像になっていた。
+以下は不採用判断へ至った探索履歴としてのみ残し、現行AC-038の適合証拠には使わない。
+
+### Implementation and checkpoint evidence
+
+- AC-037のshaderをcheckpoint 19として保全し、同じmacro field / palette / sensor pathを起点に
+  10 checkpointを追加した。coarse sine reliefのcheckpoint 20は固定周期の縞として読めたため棄却し、
+  fine phaseの21は差が小さすぎたため棄却した。22で低い有限面光源のsample積分、24でnon-periodic
+  ridged relief、26で広域光と白芯の露光分離、28で狭いcore specularの探索端を確認し、29で強度と
+  第二ridge方向を収束した。
+- 最終候補は
+  `/home/penne/dev/scratch/temp/otibo-first-view-physical-coherence-20260721/checkpoint-29-balanced-crest-source`
+  にshaderとdesktop / mobile capture付きで保全した。canonical source、build output、checkpoint sourceの
+  SHA-256は`08767b489e03afe3db352aa7f6fb94695ebf3910a331d590f4eaddcbe23d6020`で一致する。
+  canonical height map / build outputは
+  `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で不変である。
+- 同じ中心を共有する広い面光源と半径32%のcoreを各20点の固定Vogel patternでsampleし、各sampleの
+  遮蔽、距離二乗減衰、emitter / receiver cosine、GGXを積分してからmacro incident energyへ接続した。
+  diffuseは広い光源、狭い反射鎖はcoreへ主に応答する。macro visibilityを二重に掛けないよう、実法線と
+  平面法線の積分比をmaterial responseとして使う。
+- canonical microstructureは維持し、補助高さだけをdomain-warpしたnon-periodic ridged FBMへ変更した。
+  ridge値はnormal、roughness、ambient visibility、direct-only self-visibilityへ作用し、最終RGBへ直接
+  add / mixしない。広域direct energyとmidtone liftを下げ、そのenergyを狭いhot coreへ戻すことで、
+  中間光部の階調を残したまま意図的な白飛びを維持した。
+
+### Visual, responsive, and deterministic evidence
+
+- Playwright Chromiumでdesktop `1600x900`のscrollY `0 / 300 / 600 / 720 / 840`、mobile
+  `390x844`の`0 / 260 / 520 / 720`をcaptureした。初期像と中間像では寒色背景、斜めのcream / warm帯、
+  中央右寄りの飽和白を維持し、照射域だけに分岐・合流する細い反射鎖と隣接する谷が現れる。scroll後半では
+  sourceの正面化とsensor washに伴って局所contrastが減衰し、surface whiteへ連続して収束する。
+- checkpoint 19との目視比較では、均一な布目と散発的な点状反射から、方向を持つmulti-scale reliefと
+  core反射へ変化した。checkpoint 28の探索端は光線 / 刷毛跡としても読めるため採用せず、29は反射鎖の
+  発見性を残しながら過剰な平行筋を抑えた。独立したread-only visual reviewでも29を維持し、構図・色階層・
+  mobile / scrollに阻害回帰なしという判定だった。
+- mobileはcanvas `390x844`、横overflow `0`。wash開始後にwordmark contrastが低下し、surface whiteで
+  消える挙動は既存policyと一致する。full matrixのpage / shader console error / warningは`0`だった。
+  screenshot時だけChromiumがWebGL `ReadPixels` performance warningを出したが、描画失敗ではない。
+- desktop初期像を1.1秒離して撮影した二枚はSHA-256
+  `d65345cecc70275480b83b690a320daeef2128f51aa912fa9179aa7bd278c2c5`でbyte一致した。
+  撮影後のPlaywright sessionは`0`。追加checkpoint serverは起動せず、listenerは3000 / 3001 / 3011の
+  既存3つだけである。
+
+### Decision conformance
+
+- **DEC-013: PASS.** 半影、sampleごとの入射方向、height response、同心coreのspecular、HDR core由来glareを
+  一つのsource / occluder parameterへ接続した。固定周期、画面空間grain、孤立glint、最終RGBへのheight加算、
+  macro sceneの置換は採用していない。
+- **DEC-012 / DEC-011: PASS.** Layered由来の色はincident chromaticityのまま、ambient + diffuse + specularの
+  scene radianceとsensor responseを通る。macro構図、決定性、responsive、scroll / exit washを維持した。
+
+### Scoped verdict
+
+**RETRACTED — AC-038 implementation and comparison readiness.** checkpoint 29で、一つの有限光源・遮蔽物に従う
+半影と局所輸送、中間光の稜線 / 谷 / 反射鎖、暖色から飽和白への露光をdesktop / mobile / scrollで確認した。
+ただし、この微細表現はowner reviewで人工的な線 / 粒として不採用になったため、現行実装の完了根拠にはしない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: `npm test` — 2 files / 19 tests、`npm run typecheck`、`npm run lint` — 32 files、fixなし。
+- PASS: `npm run build` — canonical height map current、static 9 routes生成。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: source / `out` / checkpointのshader hashとsource / `out`のheight map hash一致。
+
+## 2026-07-21 canonical-height material-response correction
+
+### Reframed visual target
+
+- 新しい素材参照`/home/penne/Pictures/image_edit/edited/DSCF0627_edited.jpg`は、布や織り形状を
+  First Viewへ移植するためではなく、微細構造のうち入射・粗さ・焦点条件が揃った箇所だけが狭く解像する
+  光の選択性を示す資料として扱った。
+- checkpoint 29で追加したprocedural ridge / carrier、回転・倍率・offsetの異なる遠隔height sample、
+  crest chainを現行pathから除去した。可視microstructureは一つのcanonical height近傍だけから導く。
+- checkpoint 30〜39で、同じ高さ場のfine / broad normal、curvature、roughness、方向性tangent、
+  ambient cavity visibility、direct-only local self-visibilityを同じ有限面光源へ接続した。diffuseを抑え、
+  canonical fine normalへanisotropic GGXを適用し、広い白飽和を狭いHDR coreへ再配分した。
+- checkpoint 38のmanual footprint filterは背景をblock状にし、光域を粒として分断したため不採用とした。
+  checkpoint 39でownerから方向性の承認を得た。39を基準点として保全し、40では単一canonical 3x3
+  neighborhoodのSobel slopeへ変更して局所facetの連続性を高め、41では同じ高さ場のcore specularを
+  中間光域へ集中した。checkpoint 41は方向性を確定した中間基準であり、現行候補は後続節の47である。
+
+### Current artifact and visual evidence
+
+- canonical source / build output / checkpoint 41 sourceのSHA-256は
+  `4ca4b3b999a58e6266144fef42a5eb75a4aa69bc5e0529bb8aaa3d24f15dbe52`で一致する。
+  checkpointは
+  `/home/penne/dev/scratch/temp/otibo-first-view-physical-coherence-20260721/checkpoint-41-midtone-specular-focus`
+  にdesktop / mobile / scroll captureとともに保全した。
+- canonical height map / build outputは3072x6144 R8、SHA-256
+  `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で不変である。
+- desktop / mobileの初期・中間・wash前・surface whiteを実ブラウザで確認した。Layeredの寒色背景、
+  斜めのcream / warm帯、狭い飽和白芯を維持しつつ、微細反射は補助波形ではなくcanonical heightの
+  局所法線と粗さへ従う。固定位置二captureはSHA-256
+  `ce3889ec5e60673f2e84f884d3785c4ba53412bb9b37d4d3adacd68d65da0e24`でbyte一致した。
+- 撮影後のbrowser processは残していない。追加checkpoint serverは起動せず、既存listenerは
+  3000 / 3001 / 3011の3つだけである。
+
+### Decision conformance and verdict
+
+- **DEC-013: PARTIAL.** 単一source / occluder、canonical height由来のnormal / roughness / tangent /
+  visibility、同心core、HDR saturationという構造上の条件は満たす。方向性はowner確認済みだが、最終像の
+  owner採否が未了である。
+- **DEC-012 / DEC-011: PASS.** incident chromaticity、scene radiance、sensor response、macro構図、
+  決定性、responsive、scroll / exit washを維持した。
+- **Scoped verdict: PARTIAL — AC-038 is directionally approved and review-ready.** checkpoint 29のPASSを
+  撤回し、方向性承認済みのcheckpoint 39を保全したうえで、当時の候補をcheckpoint 41とした。現行候補と
+  owner採否は後続のcheckpoint 47節を正とし、TODO step 30は閉じない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: `npm test` — 2 files / 19 tests、`npm run typecheck`、`npm run lint` — 32 files、fixなし。
+- PASS: `npm run build` — static 9 routes、height map hash不変。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: canonical source / `out` / checkpoint 41 source、canonical / `out` height mapのhash一致。
+
+## 2026-07-21 source coverage and sensor saturation refinement
+
+### Implementation and checkpoint evidence
+
+- checkpoint 41の狭いcore responseは`coreAreaMaterial.z / coreAreaMaterial.y`でBRDFを正規化したため、
+  coreの大半が遮蔽物に隠れた半影外縁でも鋭いglintを維持していた。checkpoint 42で、同じ
+  `occluderDistance / sourceProjectionRadius`から求めるcore source coverageを正規化後のresponseへ戻した。
+- checkpoint 43では、coverageによって失う狭いlobeのenergyを同じ広い面光源へ応答する粗いGGX lobeへ
+  再配分した。これにより外縁のcanonical height情報を残しながら、照射帯全体へ均一な粒状光を散布しない。
+- checkpoint 44ではfront-facing時のambient / bounce増加を抑え、完成RGBを白へmixする終端処理を廃止した。
+  `u_exit_wash`はscene radianceへ掛かる決定的な露光量となり、whiteはsensor responseのchannel saturationから
+  生じる。45〜47で露光curveだけを比較し、47は5 stopの終点を維持したまま`pow(wash, 1.50)`で飽和開始を
+  終端側へ寄せた。
+- canonical source / build output / checkpoint 47 sourceのSHA-256は
+  `30062c29410dfd6cb91a0e4349abeee01c9f11f68510b0ff56560e2a8451274b`で一致する。
+  checkpointは
+  `/home/penne/dev/scratch/temp/otibo-first-view-physical-coherence-20260721/checkpoint-47-terminal-biased-saturation`
+  にsourceと全captureを保全した。canonical / build outputの3072x6144 R8 height mapはSHA-256
+  `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で不変である。
+
+### Browser and visual evidence
+
+- Codex in-app Browserでdesktop 1600x900のscrollY `0 / 360 / 600 / 720 / 840`を確認した。canvas progressは
+  `0.000 / 0.428 / 0.713 / 0.856 / 0.998`、washは`0.000 / 0.000 / 0.000 / 0.417 / 1.000`だった。
+  初期像では狭いcoreが半影外縁へ均一に現れず、360 / 600ではwarm core、cool edge、canonical heightの
+  微細responseが同じ斜め軸に残る。720では露光上昇中もLayeredの色階層が残り、840で全面白へ飽和する。
+- mobile 390x844はscrollY `0 / 260 / 520 / 600 / 640 / 680 / 720`を確認した。追加した飽和区間のwashは
+  `0.017 / 0.183 / 0.452 / 0.736`と連続し、600から680まではcool edgeとwarm coreを保持しながら各channelが
+  飽和し、720でsurface whiteへ到達する。全段階でstatus `ready`、R8 `3072x6144`、横overflow `0`だった。
+- reverse scroll直後のcaptureは次frameとの競合を含んだため完了証拠に使わない。render count `2`で静止した後の
+  二captureはSHA-256
+  `82c0b5b9558299c2f5da04b6946edcd52980852ad56bb26f71ad42e7c4e4f630`でbyte一致し、decode後pixel差も`0`だった。
+- DOMは`main`とFirst Viewを保持し、Next.js error overlayなし、page由来console error / warningなし。
+  Browser consoleにはCodex内蔵Electronのdevelopment CSP warningだけがあり、page URLは
+  `http://127.0.0.1:3000/`、titleは`otibo`だった。viewport overrideをresetし、QA tabを閉じた。
+- 独立したread-only visual reviewでもcheckpoint 41から47は「改善」と判定された。初期coreの粒状光が
+  中央軸へ寄り、000→360→600の微細responseが連続し、720でもcool edgeを保持する。終端whiteを仕様として
+  扱う場合の阻害回帰はないという判定だった。
+
+### Decision conformance and verdict
+
+- **DEC-013: PARTIAL.** core coverage、broad / narrow lobe、canonical height由来のnormal / roughness /
+  tangent / visibility、glareを同じsource / occluderへ追跡できる。方向性はowner確認済みだがcheckpoint 47の
+  最終採否が未了である。
+- **DEC-012 / DEC-011: PASS.** color basis、radiance transport、sensor responseを維持し、終端whiteの
+  post-display mixをscene exposureへ置き換えた。macro構図、responsive、scroll、surface whiteを維持する。
+- **DEC-002 / DEC-004 / DEC-005: PASS.** material座標は静止し、固定位置のsettled frameは決定的で、
+  wordmarkと露光は同じwash値に従い、終点でsurface whiteとwordmark opacity 0へ到達する。
+- **Scoped verdict: PARTIAL — checkpoint 47 is review-ready.** 実装・Browser・決定性・build互換の範囲は
+  PASS。ownerによるcheckpoint 47の最終視覚採否が残るため、AC-038とTODO step 30は閉じない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: final `npm test` — 2 files / 19 tests、`npm run typecheck`、`npm run lint` — 32 files、fixなし。
+- PASS: `npm run build` — static 9 routes、height map hash不変。
+- PASS: final `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: canonical source / `out` / checkpoint 47 source、canonical / `out` height mapのhash一致。
+
+## 2026-07-21 scroll-normal retention refinement
+
+### Residual and implementation
+
+- checkpoint 47を3000で再観察すると、初期像とscroll 360pxでは同一光源・遮蔽物に従う局所反射が
+  成立していた。一方、exit washが始まる前のdesktop 600pxで、sourceを正面寄りへ動かす処理とは別に
+  direct normalを0.74から0.50、ambient normalを0.40から0.30へ弱めており、入射方向の変化以上に
+  canonical surfaceを平坦化していた。
+- checkpoint 48は進捗終端側のnormal blendを0.62 / 0.34へ戻した中間比較とした。checkpoint 49では
+  direct / ambientのbase normal responseをscroll進捗から独立させ、source position、fragmentごとの
+  light direction、area integration、radiance、sensor saturationだけで見え方を変える。中間光だけの
+  detail bonusは従来どおり光量と進捗へ従い、終端whiteと露光curveは変更していない。
+- canonical source / build output / checkpoint 49 sourceのSHA-256は
+  `5cf837cf74a04199596540e767e329fb2341072bfb5171f477936a36d59125e0`で一致する。
+  checkpointは
+  `/home/penne/dev/scratch/temp/otibo-first-view-physical-coherence-20260721/checkpoint-49-source-normal-invariant`
+  にsource、desktop / mobile / scroll capture、settled captureとともに保全した。checkpoint 47 / 48は
+  比較基準として変更していない。
+
+### Browser and visual evidence
+
+- Codex in-app Browserのdesktop 1600x900でscrollY `0 / 360 / 600 / 720 / 840`を確認した。0では
+  checkpoint 47の斜め構図、寒色背景、creamから暖白と白芯へ進む色階層を維持する。360 / 600では
+  光帯幅や平均露光を増やさず、canonical surfaceの局所明暗が47より長く残る。720では意図的な
+  sensor exposure中も斜めのcool edgeと微細responseが残り、840でsurface whiteへ到達する。
+- mobile 390x844はscrollY `0 / 520 / 600 / 640 / 680 / 720`を確認した。0〜640でhot spot周囲の
+  寒色余白と微細反射を維持し、680から720は既存のexit wash / surface whiteへ連続する。全位置で
+  status `ready`、横overflow `0`、canvasはR8 `3072x6144`だった。
+- checkpoint 47 / 48 / 49の同位置contact sheetを実見し、49は人工的なエンボス、固定周期の線、
+  粒子overlayへ戻らず、sourceが正面化する過程だけでsurfaceが先に消える状態を軽減すると判断した。
+  独立したread-only visual reviewも「小幅だが49が改善」、desktop 360 / 600 / 720とmobile 520〜640で
+  寒色半影、暖白、白芯、局所反射の連続性が増し、人工的な線・粒への回帰なしと判定した。
+- reload直後の最初のcaptureはBrowser compositorの反映と競合したため決定性証拠から除外した。
+  render count `2`、scroll value `0.000`、exit wash `0.000`で静止後の二captureはSHA-256
+  `c3ae40cdeef4153db35389b89bb70b95151f44397020219cbbc02f0f0ba51d36`でbyte一致した。
+  page URLは`http://127.0.0.1:3000/`、titleは`otibo`、`main`とFirst Viewを保持し、横overflowは`0`。
+  page / shader由来のconsole error / warningはなく、Browser consoleにはCodex内蔵Electronのdevelopment
+  CSP warningだけがあった。
+
+### Decision conformance and verdict
+
+- **DEC-013: PARTIAL.** sourceの位置だけでなくsurface normalまでscrollで弱める二重変化を除き、半影、
+  入射方向、canonical height response、core coverage、glare、sensor saturationを同じ因果系に残した。
+  checkpoint 49の最終owner採否が未了である。
+- **DEC-012 / DEC-011: PASS.** paletteを完成RGBへ戻さず、scene radianceとsensor responseを維持した。
+  macro構図、material座標、responsive、exit wash、終端whiteは変更していない。
+- **DEC-002 / DEC-004 / DEC-005: PASS.** fixed frameは決定的で、scrollはsource position / directionだけを
+  変え、wordmarkとsurface whiteは既存wash policyへ従う。
+- **Scoped verdict: PARTIAL — checkpoint 49 is review-ready.** 実装、目視比較、Browser、決定性の範囲は
+  PASS。ownerによるcheckpoint 49の最終視覚採否が残るため、AC-038とTODO step 30は閉じない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: final `npm test` — 2 files / 19 tests、`npm run typecheck`、`npm run lint` — 32 files、fixなし。
+- PASS: final `npm run build` — canonical height map current、static 9 routes生成。
+- PASS: final `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh`、targeted `git diff --check`。
+
+## 2026-07-22 fixed-emitter solid-angle checkpoint 52
+
+### Root cause and implementation
+
+- checkpoint 50は面光源sampleを積分した後に`I_diffuse / I_flat`と`I_specular / I_flat`へ正規化し、source面積、距離、遮蔽で変わるvisible solid angleを消していた。失われたenergyを別の`directIncident`、広いmacro field、core専用gainで再構成したため、遮蔽と白芯が分離し、低contrast、白点noise、白芯不飽和を生む経路になっていた。
+- checkpoint 51では各sampleの遮蔽、距離、emitter / receiver cosine、GGXへ`PI * radius * radius / sampleCount`を掛けた未正規化積分へ戻した。広いdiskの固定radianceと、同心core内の固定radiance増分を別pathとして保ち、diffuse / specularともradiance合算までsource coverageを保持する。遮蔽で失われたcore energyをbroad lobe、ambient、frontal fillへ補償しない。
+- coreはmaterial roughnessを独自に下げず、広いemitterと同じcanonical height由来roughness / tangentを使う。小さいsource面積と高い固定radianceから選択的なhighlightを作り、glareも同じcore radianceと解析visible solid angleから導く。
+- checkpoint 52では51のtransportを変更せず、固定diffuse normal strengthを`0.84`から`0.80`へ抑えた。白芯、局所contrast、microhighlightを保ちながら、過度なemboss感だけを僅かに減らした現行候補である。
+
+### Browser and visual evidence
+
+- Codex in-app Browserでcheckpoint 52をdesktop `1600x900`のscrollY `0 / 360 / 600 / 720`、mobile `390x844`の`0 / 520 / 600 / 640 / 680 / 720`で実見した。初期・中間では暗い青緑背景、creamの半影、暖白、密な飽和白芯が同時に残り、終端は既存のsurface-white policyへ連続して到達した。横overflowは両viewportともない。
+- checkpoint 50の孤立した白粒は、52では照射方向とcanonical height facetへ連続する明暗へ変わった。白芯と暗部の差も回復した。既存height map由来の細いリブは残るが、新しい平行筋、粒子群、補助ridge、screen-space grainは導入していない。
+- 51 / 52の独立read-only visual comparisonでは、52は51の構図・飽和・明暗差を維持し、high-pass / gradientだけを約1〜3%抑えた候補と判定された。数値は採否根拠ではなく、実見した差がnormal restraintだけであることのguardrailとして扱う。
+- 52のdesktop初期像を1.2秒離して撮影したsettled二captureはSHA-256 `1995e1db532bff95f61633098f877edaffcf147eed15feb3f2e34eda4d460f77`でbyte一致した。canvasは`1585x900`、URLは`http://127.0.0.1:3000/`、横overflowなしを保持した。
+- First View以降もPrinciple、Products、Contact / legal footerまでdesktopで実見し、白い終端面から既存ページへ接続する。実在mediaがないproductの`UI image` placeholderはTop Page contractに従ってproduction DOMから除去し、name / description / statusだけで成立させた。
+
+### Artifact identity and verdict
+
+- canonical source、`out`、checkpoint 52 sourceのSHA-256は`b0ef71470e73d6a7a39013b37442732750646e2f43ce0fb175c84af4c5821875`で一致する。checkpointは`/home/penne/dev/scratch/temp/otibo-first-view-physical-coherence-20260721/checkpoint-52-fixed-emitter-normal-restraint`にsourceとdesktop / mobile / scroll captureを保全した。
+- canonical / `out`のheight mapはSHA-256 `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で一致した。
+- **DEC-013 / DEC-012 / DEC-011: PASS for implementation and internal visual QA.** 固定emitter radiance、visible solid angle、canonical material response、glare、sensor saturationを一つのradiance経路へ追跡でき、checkpoint 50の四つの不合格症状を内部比較では解消した。
+- **Scoped verdict: PARTIAL — checkpoint 52 is review-ready.** shader compile、desktop / mobile / scroll目視、決定性、responsive、ページ統合はPASS。最終owner採否が未了のため、AC-038とTODO step 30は閉じない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: `npm test` — 4 files / 38 tests、`npm run typecheck`。
+- PASS: `npx biome check app next.config.mjs panda.config.ts` — canonical application 24 files、fixなし。`npm run lint`のrepo-wide実行は、今回のscope外にあるuntracked `worktrees/first-view-shader/biome.json`をnested root configurationとして検出して停止したため、対象sourceを明示して再実行した。
+- PASS: `npm run build` — canonical height map current、static 9 routes生成。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh`、targeted `git diff --check`。
+
+## 2026-07-22 checkpoint 50 owner rejection and fixed-emitter reframing
+
+### Owner review
+
+- checkpoint 50の途中像には「いい感じ」「その方向性で良さそう」という評価があったが、その後の本レビューで
+  「白飛びがない」「materialの質感は増したがぼんやり・のっぺりして高解像感がない」
+  「白い粒々が単なるノイズ」「contrastが低すぎる」という不合格評価が提示された。
+- この最新評価を優先し、checkpoint 50を現行の完成候補として扱わない。checkpoint 50のcompile、build、
+  決定性、glare因果の証拠は維持するが、AC-038の視覚品質を満たす証拠には使わない。
+
+### Decision reframing
+
+- checkpoint 42〜43で導入した、遮蔽により失われた狭いcore energyを広い粗いlobeへ再配分する判断を撤回した。
+- emitter radianceを固定し、fragmentが見るsource coverage / solid angleとBRDFだけで受光量を変える。
+- 広いemitterのdiffuse / broad specularと、小coreの高輝度specularを別radiance pathとして保ち、
+  material response前に一つの`directIncident`へ混ぜない。
+- このreframingは、密な飽和白芯、部分遮蔽によるcream→暖色→白のladder、half-vectorへ揃う選択的な
+  microhighlight、lit / unlit contrastを一つの固定emitter機構から成立させるためのDEC-013改訂である。
+
+### Scoped verdict
+
+**PARTIAL — checkpoint 50 is structurally verified but visually rejected.** AC-038とTODO step 30は未完了である。
+固定emitter modelのimplementation / Browser evidence / owner adoptionは未検証である。
+- PASS: canonical source / `out` / checkpoint 49 sourceはSHA-256
+  `5cf837cf74a04199596540e767e329fb2341072bfb5171f477936a36d59125e0`で一致した。canonical / `out`の
+  height mapはSHA-256 `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で一致した。
+
+## 2026-07-22 causal glare visibility refinement
+
+### Residual and implementation
+
+- checkpoint 49の独立した物理整合監査で、glareだけが`topCut == 0`でも固定の26%を残し、直射とcoreが
+  隠れた位置でも同じ遮蔽物へ追跡できない経路を持つと判明した。局所の`hotCore`でhard gateすると、
+  本来境界を跨げるPSFまで失うため採用しなかった。
+- checkpoint 50ではglare profile幅から解析PSF半径を導き、既存の`occluderDistance`、
+  `sourceProjectionRadius`と合成した有限source visibilityへ置き換えた。PSFはその半径内だけ遮蔽物境界を
+  跨ぎ、sourceが範囲外まで隠れた位置ではglareが0へ収束する。macro field、canonical height response、
+  core specular、palette、sensor exposureは変更していない。
+- canonical source / build output / checkpoint 50 sourceのSHA-256は
+  `627221ca624bf9bece66a92881ee83632ffb7f6179c1e1152e6762fda5badeb0`で一致する。checkpointは
+  `/home/penne/dev/scratch/temp/otibo-first-view-physical-coherence-20260721/checkpoint-50-causal-glare-visibility`
+  にsource、desktop / mobile / scroll capture、settled captureとともに保全した。
+
+### Browser and visual evidence
+
+- Codex in-app Browserでdesktop `1600x900`のscrollY `0 / 360 / 600 / 720`、mobile `390x844`の
+  `0 / 520 / 600 / 640 / 680 / 720`を実見した。全位置でstatus `ready`、横overflow `0`。
+  scroll値とwashはdesktopで`0.000 / 0.428 / 0.713 / 0.856`と`0.000 / 0.000 / 0.000 / 0.417`、
+  mobileで`0.000 / 0.659 / 0.760 / 0.811 / 0.862 / 0.912`と
+  `0.000 / 0.000 / 0.017 / 0.183 / 0.452 / 0.736`だった。
+- checkpoint 49 / 50の同位置contact sheetを実見した。50は寒色半影、斜めのcreamから暖白芯、
+  canonical heightの微細反射を維持し、upper shadow側の不要なglareだけを抑えた。mobile 680から720の
+  terminal whiteも不変だった。人工的なエンボス、規則的な線、粒子への回帰はない。
+- 独立したread-only visual reviewも50を「小〜中幅の改善」と判定した。desktop / mobileでglare芯が
+  遮蔽物境界へ局所化し、半影と局所反射の段階を残す一方、構図、素材の微細リブ、暖白芯、終端white washを
+  損なっていない。オーナーも直近像を実見し、方向性を肯定した。
+- desktop初期像を1.2秒離して撮影したsettled二captureはSHA-256
+  `db825a857d0ef2819deafce78a9b6f55af4cf8cf4297d7adcbdde69ed4d27c2c`でbyte一致した。
+  render count `2`、scroll value `0.000`、exit wash `0.000`、page URLは`http://127.0.0.1:3000/`、
+  titleは`otibo`、`main`を保持した。viewport overrideをresetし、QA tabを閉じ、Browser tabは`0`である。
+
+### Decision conformance and verdict
+
+- **DEC-013: PARTIAL.** 半影、入射方向、canonical height response、core coverageに加え、解析PSFのglareも
+  同じoccluder distanceへ接続した。固定のglare floorを除去し、構図・微細表現・終端飽和に目視回帰はない。
+  checkpoint 50の方向性はオーナー肯定済みだが、最終採否は未了である。
+- **DEC-012 / DEC-011: PASS.** incident chromaticity、scene radiance、sensor response、macro構図、
+  responsive、scroll / exit washを維持した。
+- **DEC-002 / DEC-004 / DEC-005: PASS.** 固定frameは決定的で、material座標、wordmark、surface whiteの
+  policyに変更はない。
+- **Scoped verdict: PARTIAL — checkpoint 50 is the current review candidate.** 実装、物理整合監査、
+  desktop / mobile / scrollの目視、決定性はPASS。最終owner採否が残るため、AC-038とTODO step 30は閉じない。
+
+### Closure checks
+
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: canonical source / `out` / checkpoint 50 sourceはSHA-256
+  `627221ca624bf9bece66a92881ee83632ffb7f6179c1e1152e6762fda5badeb0`で一致した。canonical / `out`の
+  height mapはSHA-256 `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e`で一致した。
+- PASS: final `npm test` — 2 files / 19 tests、`npm run typecheck`、`npm run lint` — 32 files、fixなし。
+- PASS: final `npm run build` — canonical height map current、static 9 routes生成。
+- PASS: final `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh`、targeted `git diff --check`。

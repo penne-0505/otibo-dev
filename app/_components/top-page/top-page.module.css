@@ -94,6 +94,14 @@
   align-self: start;
 }
 
+.product[data-has-media="false"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.product[data-has-media="false"] .productCopy {
+  width: min(100%, 42rem);
+}
+
 .status {
   display: inline-flex;
   align-items: center;

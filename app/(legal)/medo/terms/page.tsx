@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-// intent: INV-005 (Legal/legal-pages) — noindex は明示的決定
+// intent: DEC-005 (Legal/legal-pages) — robots policy follows each page's publication purpose instead of a default.
 // 判断: 利用規約は検索流入可。ストア審査・ユーザー確認の参照ページ。
 export const metadata: Metadata = {
   title: "Medo 利用規約 | otibo",

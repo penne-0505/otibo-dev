@@ -4,8 +4,9 @@ status: active
 draft_status: n/a
 qa_status: planned
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-03
-updated_at: 2026-07-03
+updated_at: 2026-07-17
 references:
   - "_docs/intent/Legal/legal-pages/decision.md"
   - "_docs/plan/Legal/legal-pages/plan.md"
@@ -41,13 +42,21 @@ TODO `Legal-Feat-9` より:
 - AC-101: 公開時点で「要オーナー確認」マーカーが本文に残存していない。
 - AC-102: dev / build / lint / typecheck が全て exit 0。
 
+## Decision Review Scope
+
+- DEC-001: owner-confirmed publication workflow。
+- DEC-002: current factsからのnew drafting。
+- DEC-003: legal routeとsubmitted URLの安定性。
+- DEC-004: legal reading surfaceのownership。
+- DEC-005: per-page robots policy。
+- DEC-006: personal-information publication boundary。
+- DEC-007: placeholder honesty。
+- DEC-008: no autonomous legal interpretation。
+
 ## Intent-derived Invariants
 
 - INV-001: 法務ページの事実記述はオーナー確認済みの内容のみを公開する。未確認マーカー残存状態で公開しない。
-- INV-002: 法的文書は新規書き起こしであり、旧テキストを復旧・流用しない。
 - INV-003: 法務ページは実態と異なる記載を含まない。
-- INV-004: 法務ページの layout は `@otibo/ui`(core-ui)consumer として構成する。
-- INV-005: 各法務ページの SEO meta は明示的な決定に基づいて設定されている。
 - INV-006: オーナー決定範囲を超える個人情報を、ページ・リポジトリのいずれにも書き込まない。
 - INV-007: placeholder ページは「準備中」を明示し、完成済みの体裁を取らない。
 - INV-008: 文書・実装は法制度の解釈を断定しない。最終判断はオーナー(必要に応じて専門家)。
@@ -77,7 +86,7 @@ TODO `Legal-Feat-9` より:
 
 ## Test Matrix
 
-| ID | Source | Requirement / Invariant | Test Type | Command / File | Expected Evidence | Status |
+| ID | Source | Requirement / Optional Invariant | Test Type | Command / File | Expected Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-001 | TODO | Medo 3 ページ公開 | E2E + Manual | `curl /medo/privacy /medo/terms /medo/account-deletion` + オーナー通読承認 | 全 HTTP 200 + 期待見出し + オーナー承認記録 | planned |
 | AC-002 | TODO | /tokushoho 公開 + 記載要件 | E2E + Manual | `curl /tokushoho` + オーナー最終確認(必要に応じ専門家) | HTTP 200 + 記載項目がオーナー決定と一致 | planned |
@@ -86,10 +95,7 @@ TODO `Legal-Feat-9` より:
 | AC-101 | intent | マーカー残存ゼロ | Static | `grep -rn "要オーナー確認\|TODO(owner)\|UNCONFIRMED" app/` | 0 hit | planned |
 | AC-102 | intent | dev/build/lint/typecheck | CI-equivalent | 各コマンド | 全 exit 0 | planned |
 | INV-001 | intent | 未確認事実の公開なし | Manual + Static | オーナー確認記録の存在 + AC-101 の grep | checklist (1)〜(7) 全解消の記録 | planned |
-| INV-002 | intent | 旧テキスト不使用 | Manual + Diff | 作業ログ / diff review | jj / git 履歴からの復元操作が作業過程に存在しない | planned |
 | INV-003 | intent | 実態と一致 | Manual | オーナー事実確認(取得データ・削除手順) | オーナーが「実態と一致」と確認した記録 | planned |
-| INV-004 | intent | @otibo/ui consumer | Static | `grep -r "@otibo/ui" app/medo app/tokushoho` + 独自 CSS の diff review | layout が library import で構成されている | planned |
-| INV-005 | intent | SEO meta 明示的決定 | Static | metadata 定義箇所の intent 参照コメント確認 | `// intent: INV-005 (Legal/legal-pages)` アンカー存在 | planned |
 | INV-006 | intent | 個人情報範囲 | Static + Manual | `grep` で電話番号 / 住所パターン + オーナー決定との突合 | 決定範囲外の個人情報 0 件 | planned |
 | INV-007 | intent | placeholder 明示 | E2E | `curl <sarae route>` | 「準備中」明示、完成体裁でない | planned |
 | INV-008 | intent | 法解釈の断定なし | Manual | 本文 review | 法制度解釈の断定記述なし(「〜とされています」等の断定回避 or オーナー確認済み事実のみ) | planned |

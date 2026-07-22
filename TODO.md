@@ -401,10 +401,12 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   - AC-034: 本線3000のbeam mask・光層・色・白飛び・scroll / responsive挙動を不変の比較基準として、同一height mapの法線を既存光場へ接続するLambert、局所roughnessを用いた低強度GGX、ambient-only AO、必要時のみ弱い局所self-shadowを累積checkpointとして比較できる。有限面光源・物理遮蔽物・bloom・最終RGB maskは導入せず、各checkpointは独立workspaceとportで再確認できる。
   - AC-035: オーナーが採用した3019のshaderを本線3000へbyte-identicalに収束し、height map / engine / policy / wordmarkを変更しない。写真だけを背景とする3020はshader本線へ混ぜず、原本画像と独立workspaceを維持した比較用3001として再確認できる。
   - AC-036: 3000の光帯の重心・方向・白芯位置を保ちながら、完成RGB同士のmixを廃止し、寒色ambientと暖色direct irradiance、直射可視率、Lambert / GGXを単一のscene-referred radianceへ統合する。height mapはnormal / roughness / ambient visibilityを介してのみ見た目へ作用し、固定scroll位置の決定性、mobile構図、exit washを維持する。
+  - AC-037: Layeredの寒色背景、cream色の中間光、暖色高輝度域、白芯への色軌跡を、完成RGBではなく正規化した入射chromaticityとsensor responseから再現する。height mapはnormal / roughness / ambient visibility / bounded direct self-visibilityを介して一つのradiance計算へ作用し、teal-green偏り、赤橙の帯、白芯への唐突な遷移を解消しながらmacro構図、決定性、responsive、scroll / exit washを維持する。
+  - AC-038: DEC-012のcheckpointを基準に、既存macro field内の半影、fragmentごとの入射方向、height-mapのdirect response、高輝度radiance由来glareを一つの仮想面光源と遮蔽物へ接続する。広い面光源と同心の小coreをsample単位で積分し、狭いcoreの応答は同じ遮蔽物に対するsource coverageを保持する。emitter radianceは遮蔽状態から独立して固定し、遮蔽で失われたcore energyを広い粗いlobeやambientへ再配分しない。広いemitterと小coreはそれぞれのdiffuse / specular、visible solid angle、BRDFを保ったままradiance合算まで分離する。可視microstructureは単一のcanonical height近傍から得る法線・曲率・roughness・tangent・visibilityだけで構成し、補助ridge、波形、遠隔height sampleの合成、画面空間grainは使わない。scrollでsourceが正面寄りへ移動してもcanonical normalのbase response自体は減衰させず、入射方向、radiance、sensor saturationから見え方を変える。高輝度coreのglareは同じ遮蔽物を跨ぐ解析PSF半径の範囲だけに残し、光源がその範囲外まで隠れた位置へ固定の輝度floorを残さない。desktop / mobileの進捗0・中間・wash前では、完全に見えるcoreがsensor飽和を越える密な白芯を作り、部分遮蔽がcream→暖色→飽和白の輝度ladderを作る。境界softness、凹凸の明暗、白芯周辺のにじみが同じ光源方向へ同意し、microhighlightは一様な白点noiseではなくhalf-vectorと揃うfacet群だけに選択的に現れる。背景と照射域の局所contrast、高周波の焦点階層、暗い谷と方向整合した微細反射が同時に読める。終端白は完成RGBのwhite mixではなくscene radianceへのscroll同期露光とsensor saturationから到達する。Layeredの斜め構図、寒色背景、cream→暖色→飽和白の階層、決定性、responsive、exit washを維持し、数値は回帰guardrailに限定する。
 - **Steps**:
   1. [x] `Site-Enhance-14`のshader-only local baselineを完了する
   2. [x] 4段階それぞれのcontent contractを定義する
-  3. [ ] owner copy、掲載product、status、asset、link、contact / legal導線をcontractへ充足する（文言とMedo logoは初版反映済み）
+  3. [ ] owner copy、掲載product、status、asset、link、contact / legal導線をcontractへ充足する（文言とMedo logoは初版反映済み。実在mediaがないproductのproduction placeholderは除去済み）
   4. [x] 全体compositionとproduct紹介の候補表現を試作・判定する
   5. [ ] responsive / motion / semantic / keyboard behaviorを実装する（`@otibo/ui@0.4.0` primitiveへの組み直しを進行中）
   6. [ ] static build / Workers dry-run / browser QA / owner reviewを実施する
@@ -430,6 +432,8 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   26. [x] 3000の演出的光場を固定し、height由来のLambert / roughness+GGX / ambient-only AO / optional local self-shadowだけを段階的に累積したhybrid checkpointを実装・比較する
   27. [x] 3019を本線3000へ収束し、写真背景3020を独立した3001として残して最終比較portを整理する
   28. [x] 3019をチェックポイント保存し、完成RGBの合成をambient + visibility × direct BRDFへ置き換え、desktop / mobile / scroll / debug fieldで検証する
+  29. [x] Layeredの色軌跡を入射chromaticityとsensor responseへ移し、bounded self-visibilityをdirect irradianceへ接続して、desktop / mobile / scrollでmacro構図・色遷移・局所応答を収束する
+  30. [ ] macro field内の半影・入射方向・height response・高輝度glareを一つの仮想面光源と遮蔽物へ接続し、単一canonical height由来の微細反射へ収束する（checkpoint 50はglare因果を改善したが、最新owner reviewで白芯不飽和・低contrast・白点noise・高解像感不足として不採用。checkpoint 52で固定emitter radianceと未正規化visible solid angleへ再構成し、白芯・contrast・連続した材質highlightを回復した。最終owner採否待ち）
 - **Description**:
   - Context: 旧Products / About / Contact / Footerはshaderとvisual canon確立前の初期実装で、Panda CSS stylesheetも実配信されていなかった。旧構成の修復ではなく、site purposeから下流を再設計する。
   - Notes: 「First View → principle的な短文 → product紹介 → contact / 所在」を上位情報骨格とする。これは責務と読む順序であり、固定section templateやproduct cardを必須にしない。shader-only状態はproduction deploy禁止。First Viewの親区間は線形scrollの210svhを確定値とし、終盤washを進捗0.74〜1.00へ分散する。wordmarkはwashの逆数で薄くし、全面白では残さない。素材baselineは3072x6144の非均一microstructureとtexel基準の法線・曲率へ収束した。GPU textureは単一channel `R8`で保持し、4096x8192案の階層性をWQHDで許容範囲内に保ちながら配信可能な単一assetへ閉じる。光路距離`t`の探索は不採用で閉じ、後続の見入り比較はINV-002 / INV-021の適用範囲限定を前提とする。dynamic range再訪も物理的一貫性を欠くため不採用で閉じる。L1〜L3は局所的なmaterial realismを示した一方で3000の構図を失ったため不採用とした。3000の光場を仮想入射光として固定したhybrid material responseは3019で比較を完了し、オーナー判断により本線3000へ採用した。次段では3019を保全したうえで、構図fieldだけを拘束し、完成RGBのmixをscene-referredなambient / direct radianceへ置き換える。写真背景3020は別方向の価値を持つためshaderへ混ぜず、独立した3001として維持する。

@@ -1,10 +1,11 @@
 ---
 title: "Plan: Initial otibo.dev top page implementation"
-status: proposed
+status: superseded
 draft_status: n/a
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/plan/Site/top-page-rebuild/plan.md"
   - "_docs/intent/App/top-page-initial/decision.md"
   - "_docs/qa/App/top-page-initial/test-plan.md"
 related_issues: []

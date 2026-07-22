@@ -4,8 +4,9 @@ status: active
 draft_status: n/a
 qa_status: verified
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-11
-updated_at: 2026-07-11
+updated_at: 2026-07-17
 references:
   - "_docs/qa/App/otibo-ui-0-3-migration/test-plan.md"
   - "_docs/intent/App/otibo-ui-0-3-migration/decision.md"
@@ -21,15 +22,15 @@ related_prs: []
 
 `@otibo/ui@0.3.0` の自己完結CSSとprimitiveへ移行し、consumer-side Pandaを
 runtime / build経路から外した。自動gate、Workers dry-run、desktop / mobileの
-browser QAで全AC / INVを確認した。
+browser QAで全AC、影響するDEC、strict INVを確認した。
 
 ## Verification Verdict
 
-**Verdict: PASS**
+Verdict: PASS
 
 - **Rationale**: `@otibo/ui@0.3.0` の自己完結CSSとprimitiveへ移行し、consumer-side
   Pandaをruntime / build経路から外した。自動gate、Workers dry-run、desktop / mobileの
-  browser QAで全AC / INVを確認した。
+  browser QAで全AC、影響するDEC、strict INVを確認した。
 
 ## Commands Run
 
@@ -73,14 +74,17 @@ git diff --check
 - AC-004: PASS — First Viewとtop pageの4段階構成を維持。
 - AC-005: PASS — lint / typecheck / unit / static build / Workers dry-runが成功。
 
+## Decision Conformance
+
+| ID | Result | Why the implementation remains aligned |
+| --- | --- | --- |
+| DEC-001 | PASS | 公開stylesheetだけをrootで読み、consumer-side Pandaをruntime / build経路から外した。 |
+| DEC-002 | PASS | page compositionはapp側に残し、ScrollAreaはmedia railへ限定した。 |
+| DEC-003 | PASS | route / visual / deployを回帰確認し、旧artifactの恒久削除は行わなかった。 |
+
 ## Invariant Coverage
 
-- INV-001: PASS — root layoutでstyles.cssを一度だけimport。
 - INV-002: PASS — Panda codegen script / dependency / source importなし。
-- INV-003: PASS — 法務routeと本文を変更せず、layout styleだけCSS Modulesへ移行。
-- INV-004: PASS — desktop / mobileでFirst Viewとsection順を確認。
-- INV-005: PASS — ScrollAreaはproduct media railだけに使用。
-- INV-006: PASS — static exportとasset-only Workers dry-runを維持。
 
 ## Deferred / Not Covered
 

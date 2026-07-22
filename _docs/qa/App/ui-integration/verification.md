@@ -1,12 +1,13 @@
 ---
 title: "QA Verification: Integrate @otibo/ui design system into otibo.dev"
-status: active
+status: superseded
 draft_status: n/a
 qa_status: verified
 risk: Medium
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/qa/App/otibo-ui-0-3-migration/verification.md"
   - "_docs/intent/App/ui-integration/decision.md"
   - "_docs/plan/App/ui-integration/plan.md"
   - "_docs/qa/App/ui-integration/test-plan.md"
@@ -24,7 +25,7 @@ related_prs: []
 
 ## Verification Verdict
 
-**Verdict: PASS**
+Verdict: PASS
 
 全 AC(001〜004)と全 INV(001〜008)が満たされている。**library 側 `Pkg-Feat-5` の AC-007(consumer integration)も本 verification で end-to-end 確認済**(library Intent 通りに動作することが consumer 側で確証された)。
 
@@ -137,7 +138,7 @@ template diff: LICENSE.txt 1 line のみ(前 session で legitimate に変更済
 
 deferred なし。本 task scope に対して完全網羅。`Pkg-Feat-5/AC-007`(library 側の deferred)も本 verification で実質的に PASS。
 
-## Residual Risks
+### Historical follow-up context (not residual to scoped PASS)
 
 - **Discovered during implementation:Field 等 namespace export trap**(Intent §Discovered):`<Field.Root>` のような namespace property 経由は Next.js RSC bundler が Client Manifest で resolve できず build 失敗。consumer は flat export(`FieldRoot` 等)を使う grain で確定。**otibo-ui 側 README + 他 namespace export(`Card.Root` / `Tabs.Root` / `Toast.Root` 等)の docs 改訂が follow-up 別 task**。
 - **Base UI version drift**:otibo-ui peer は `@base-ui-components/react@^1.0.0-beta.6` だが、npm が `^1.0.0-rc.0` を install。pre-release tag(beta → rc)の caret 解釈で、API breaking が起こり得る。本 task では Button + Field の試験描画は問題なく動作したが、Toast / Dialog / Combobox 等のより複雑な component で hook signature の差異が顕在化する可能性。**実 page 実装で問題が出たら別 task で評価**。
@@ -145,6 +146,13 @@ deferred なし。本 task scope に対して完全網羅。`Pkg-Feat-5/AC-007`(
 - **font 未導入**:現状 sans-serif system fallback。`gen-interface-jp` 等の日本語 font を consumer 側に載せるかは portfolio page 実装で判断。
 - **First Load JS = 117 kB**:scaffold +30 kB。Button + Field + Base UI の最小 footprint としては妥当だが、portfolio page で component を追加するたびに増える。tree-shaking が library 側で機能しているかは別途確認(現状の `sideEffects: false` + ESM export + tsup 出力で OK と想定)。
 - **dark mode / theme switching 未確認**:default(light)のみ。
+- 上記は当時の実装scope外に置いた後続候補であり、検証済みのconsumer
+  integrationに対する未達条件ではない。現行のCSS消費契約は
+  後継`App/otibo-ui-0-3-migration`を正本とする。
+
+## Residual Risks
+
+None
 
 ## Follow-up TODOs
 

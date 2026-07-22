@@ -1,10 +1,11 @@
 ---
 title: "Intent: Initial otibo.dev top page implementation"
-status: active
+status: superseded
 draft_status: n/a
 created_at: 2026-06-21
-updated_at: 2026-07-04
+updated_at: 2026-07-17
 references:
+  - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/intent/Site/otibo-dev-site-purpose/decision.md"
   - "_docs/reference/Site/visual-canon/reference.md"
   - "_docs/plan/App/top-page-initial/plan.md"

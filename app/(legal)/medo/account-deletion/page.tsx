@@ -2,7 +2,7 @@ import { Button } from "@otibo/ui";
 import type { Metadata } from "next";
 import styles from "./account-deletion.module.css";
 
-// intent: INV-005 (Legal/legal-pages) — noindex は明示的決定
+// intent: DEC-005 (Legal/legal-pages) — robots policy follows each page's publication purpose instead of a default.
 // 判断: アカウント削除ページは検索流入可。Google Play データセーフティフォームで URL 提出が必要なページ。
 // Google Play 削除要件 3 点: (1)エラーなく読み込まれる (2)削除リクエスト導線が目立つ位置に (3)アプリ名またはデベロッパー名が参照可能
 export const metadata: Metadata = {

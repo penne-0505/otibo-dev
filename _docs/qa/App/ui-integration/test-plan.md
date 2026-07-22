@@ -1,12 +1,13 @@
 ---
 title: "QA Test Plan: Integrate @otibo/ui design system into otibo.dev"
-status: active
+status: superseded
 draft_status: n/a
 qa_status: planned
 risk: Medium
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/qa/App/otibo-ui-0-3-migration/test-plan.md"
   - "_docs/intent/App/ui-integration/decision.md"
   - "_docs/plan/App/ui-integration/plan.md"
 related_issues: []

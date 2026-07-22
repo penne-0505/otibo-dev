@@ -2,8 +2,9 @@
 title: "Intent: Consume @otibo/ui as a self-contained CSS library"
 status: active
 draft_status: n/a
+intent_schema: 2
 created_at: 2026-07-11
-updated_at: 2026-07-11
+updated_at: 2026-07-17
 references:
   - "_docs/plan/App/otibo-ui-0-3-migration/plan.md"
   - "_docs/qa/App/otibo-ui-0-3-migration/test-plan.md"
@@ -16,24 +17,35 @@ related_prs: []
 0.2.xはconsumerにPanda preset / buildinfo / codegenを要求した。0.3.0はこれを廃止し、自己完結した
 `styles.css`を公開する。otibo-devも将来Pandaを基本的に使わない方針となった。
 
-## Decision
+## Decisions
 
-- `@otibo/ui/styles.css`をdesign-system baselineの正本とする。
-- app固有layoutはCSS Modulesで表現する。
-- componentとして意味があるBadge / Link / Separator / ScrollAreaだけを利用し、product compositionはapp側に残す。
-- consumer-side Panda codegenをinstall / build条件から外す。
-- 未参照artifactの恒久削除は別途オーナー承認を得る。
+### DEC-001: UI libraryを自己完結CSSとして消費する
 
-## Alternatives
+- **What**: `@otibo/ui/styles.css`をrootで一度だけ読み、consumer-side
+  Panda codegenをinstall / build条件から外す。
+- **Why**: library内部のPanda versionとcodegen contractをconsumerへ漏らさず、
+  fresh installから同じstyleを再現できるようにするため。
+- **Change freedom**: library内部の生成方式とCSS bundle構成は変更できる。
+  consumerが公開stylesheetだけでbuildできる境界は維持する。
+- **Why not**: 0.2.x維持や旧生成物の併用では、fresh installがrepository内の
+  stale artifactへ依存する。
 
-- **0.2.xを維持**: 将来方針と逆行するため不採用。
-- **0.3.0へ上げて旧生成物を使い続ける**: fresh installの再現性がなくなるため不採用。
-- **product moduleをCardへ置換**: 表示構造をlibrary surfaceに従属させるため不採用。
+### DEC-002: page compositionはconsumerが所有する
 
-## Rationale
+- **What**: app固有layoutはCSS Modulesで表現し、意味のあるprimitiveだけを
+  `@otibo/ui`へ委譲する。product compositionをCardへ固定しない。
+- **Why**: component stylingとsite固有の情報構造を分離し、library surfaceの都合で
+  page compositionが決まる状態を避けるため。
+- **Change freedom**: 使用primitiveやCSS Modulesの分割は変更できる。
+  product表現を特定のlibrary componentへ固定しない。
 
-libraryのcomponent stylingとconsumerのpage compositionを分離すると、Panda version / codegen contractを
-consumerへ漏らさず、site固有の視覚判断も保持できる。
+### DEC-003: migrationとartifact削除を分離する
+
+- **What**: 公開route、metadata、First View、top-page責務順、Workers static
+  exportをmigration regressionとして確認し、未参照artifactの削除は別承認にする。
+- **Why**: CSS基盤変更と恒久削除を同時に行うと、visual regressionとrollback不能な
+  filesystem変更を切り分けられないため。
+- **Change freedom**: 承認済みcleanup taskでは旧artifactを削除できる。
 
 ## Consequences / Impact
 
@@ -47,12 +59,14 @@ consumerへ漏らさず、site固有の視覚判断も保持できる。
 
 ## Intent-derived Invariants
 
-- INV-001: appは`@otibo/ui/styles.css`をrootで一度だけ読む。
-- INV-002: app sourceとpackage scriptsはconsumer-side Panda codegen / styled-systemを参照しない。
-- INV-003: 法務routeの本文・URL・metadataを変更しない。
-- INV-004: First Viewの一画面高と4段階の責務順を維持する。
-- INV-005: product moduleをCardへ固定せず、mobile media railだけScrollAreaへ委譲する。
-- INV-006: static exportとWorkers Static Assetsを維持する。
+- INV-002 (from DEC-001): app sourceとpackage scriptsはconsumer-side Panda codegen / styled-systemをbuild条件として参照しない。
+
+## Enforced in (optional)
+
+- DEC-001 / INV-002: root stylesheet import、dependency tree、
+  package scripts、source grep。
+- DEC-002: top-page compositionとmobile media railのdiff / browser review。
+- DEC-003: route / metadata / visual / deploy regression checksと削除diff review。
 
 ## Rollback / Follow-ups
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-// intent: INV-005 (Legal/legal-pages) — noindex は明示的決定
-// intent: INV-007 — placeholder ページは「準備中」を明示し、完成済みの体裁を取らない
+// intent: DEC-005 (Legal/legal-pages) — robots policy follows each page's publication purpose instead of a default.
+// intent-invariant: INV-007 (Legal/legal-pages) — unfinished products remain visibly marked as in preparation.
 // 判断: 未実装 placeholder は noindex。検索流入させる意味がない状態。
 export const metadata: Metadata = {
   title: "Stash 法務ページ | otibo",

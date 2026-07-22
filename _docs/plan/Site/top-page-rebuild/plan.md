@@ -3,7 +3,7 @@ title: "Plan: Rebuild the top page from the light shader foundation"
 status: active
 draft_status: n/a
 created_at: 2026-07-10
-updated_at: 2026-07-13
+updated_at: 2026-07-16
 references:
   - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/qa/Site/top-page-rebuild/test-plan.md"
@@ -36,10 +36,22 @@ production deploy しない。
 - 上位情報骨格の確定後に各領域の表現、responsive behavior、motion、legal / contact 導線を統合する。
 - Cloudflare Workers Static Assets の static export 条件を維持する。
 - `@otibo/ui@0.4.0` の typography role、LogoFrame、MediaFrameを、対応するproduct表現へ採用する。
+- First Viewの00 baselineとして、同じ表面への入射角をscrollで変える照明表現と、その操作区間を統合する。
+- First Viewの素材比較では2048x4096の00を固定し、紙、石／漆喰、布を表面起伏だけで判別できる操作可能な3案へ分離する。
+- 素材比較の第二ラウンドでは布を保持し、紙v2、孔のない石v2、砂、砂利を追加して孔の不快感と粒子集合を分離する。
+- 素材比較の第三ラウンドでは布60%・紙v2 10%・砂30%を、周波数分担blendと純画素加重平均の2案へ分け、混合方式だけを比較する。
+- 3008では同じ三素材の識別特徴を複数方向・周波数帯へ再配置し、解像感と情報量を保ちながら素材名へ回収されにくい表面を比較する。
+- 3009では3006の比率、出力分散、shaderのぼけを保ち、布の低周波、砂の中周波、紙v2の高周波という分担だけを強める。
+- 3009を新しいFirst View baselineとして3000へ収束し、元の布を3001、新baselineの比較鏡像を3002だけに残す。canonical generatorは一時assetへ依存せず同じblendを再生成する。
+- 新baselineから素材同定をさらに弱める比較は、情報量を減らさず低周波carrierの位相連続性だけを変える。3003〜3005では周期的な等方carrierへの置換量を25%・45%・60%に分け、First Viewの光学条件は固定する。
+- 位相置換25%を3000へ収束した後は3001の元の布を維持し、3002のheight-map微粒子と3003の静的post-shader粒子を比較する。粒子以外のFirst View構成とscroll接続は固定する。
+- 3072x6144の非均一microstructureを次の3000へ収束し、height texel基準の法線・曲率とR8 texture uploadでWQHDの解像感、GPU常駐量18 MiB、単一asset配信上限を両立する。
+- First Viewは固定scroll位置で静止させ、時間driftを廃止する。描画更新は初期化・scroll・resize・context復帰に限定する。
 
 ## Non-Goals
 
-- shader の美観探索を再開しない。
+- 00 baseline確定後に、速度反応、表面移動、残像など別系統のshader探索へ戻らない。
+- scroll入力と無関係なambient driftを残さない。
 - 旧 Products / About / Contact / Footer の見た目を修復して再利用することを目的にしない。
 - `hero → cards → about → footer` を既定の骨格として採用しない。
 - product 紹介を product card や UI 断片の展示へ固定しない。
@@ -52,6 +64,7 @@ production deploy しない。
 
 - **Functional**:
   - First View は光と `otibo` だけを維持する。
+  - First View内では下流contentを見せず、scrollに応じて同じ表面への光の入射角だけを変える。
   - First View の直後に、otibo が何の場所かを伝える短い principle を置く。
   - principle の後で、Medo を含む実在 product を紹介し、今後 product を追加できる。
   - 最後に contact、制作者の所在、必要な legal 導線へ到達できる。
@@ -163,6 +176,19 @@ production deploy しない。
 7. static build、Wrangler dry-run、browser QA、オーナー visual review を実施する。
 8. verification が PASS になるまで shader-only baseline をdeployしない。
 9. `@otibo/ui@0.4.0`へ更新し、productのlogo / mediaと各文言のtypography roleをsystem primitiveへ移行する。
+10. scroll-linked入射光案を00 baselineへ収束し、First ViewからPrincipleへの接続を実装する。
+11. surface whiteへのwashを進捗0.74〜1.00へ分散し、210svhと白保持区間を変えずに終盤の急変を抑える。
+12. First View wordmarkをwhite washと同じ進捗でfadeし、全面白からPrincipleへ文字を持ち越さない。
+13. First Viewの素材感を紙、石／漆喰、布の3案で比較し、選択案だけを00へ収束する。
+14. 初回feedbackを反映し、紙v2、孔のない石v2、布、砂、砂利を比較する。
+15. First Viewの時間driftと常時frame loopを廃止し、scroll-linked描画だけへ収束する。
+16. 布60%・紙v2 10%・砂30%の周波数分担blendを3006、純画素加重平均を3007として比較する。
+17. 三素材の格子・長繊維・均質粒を中和し、複数周波数の情報密度を保つ3008を追加する。
+18. 3006の出力分散を固定し、素材ごとの通過帯域の重なりを狭めた3009を追加する。
+19. 3009を本線3000とcanonical generatorへ収束し、active比較環境を3001 / 3002へ整理する。
+20. 新baselineの情報量と周波数分担を保ち、低周波carrierの位相連続性を3段階で弱める案を3003〜3005へ追加する。
+21. 位相置換25%を3000へ収束し、3001の布を残したまま微細粒子の挿入位置を3002 / 3003で比較する。
+22. 3072x6144のmicrostructure案をR8 textureとして3000へ収束し、4096案との差と配信互換性を検証する。
 
 ## QA Plan
 
@@ -174,6 +200,9 @@ production deploy しない。
   - Integration: First View から必要情報・導線までの体験順序を確認する。
   - Automated: lint、typecheck、unit、static build、Wrangler dry-run。
   - Manual: desktop / mobile と3秒 / 30秒のオーナー判定。
+  - Scroll: First Viewの進捗0 / 中間 / 1と、Principleがviewportへ入る境界を実操作で確認する。
+  - Exit wash: 進捗0.74 / 0.87 / 1.00と、0.74地点から120px送った表示を比較する。
+  - Wordmark fade: 進捗0 / 0.74 / 0.87 / 1.00 / 白保持でcomputed opacityと見え方を確認する。
 
 ## Deployment / Rollout
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-// intent: INV-005 (Legal/legal-pages) — noindex は明示的決定
+// intent: DEC-005 (Legal/legal-pages) — robots policy follows each page's publication purpose instead of a default.
 // 判断: プライバシーポリシーは検索流入可。Google Play 審査でも参照される公開ページ。
 export const metadata: Metadata = {
   title: "Medo プライバシーポリシー | otibo",

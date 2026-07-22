@@ -1,12 +1,13 @@
 ---
 title: "QA Test Plan: Initial Next.js + Panda scaffold for otibo.dev"
-status: active
+status: superseded
 draft_status: n/a
 qa_status: planned
 risk: Medium
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/qa/App/workers-static-export-next16/test-plan.md"
   - "_docs/intent/App/scaffold/decision.md"
   - "_docs/plan/App/scaffold/plan.md"
 related_issues: []

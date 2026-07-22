@@ -4,13 +4,16 @@ status: active
 draft_status: n/a
 qa_status: in-progress
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-13
+updated_at: 2026-07-17
 references:
   - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/plan/Site/top-page-rebuild/plan.md"
   - "_docs/draft/Site/top-page-exhibition/notes.md"
   - "_docs/reference/Site/visual-canon/reference.md"
+  - "_docs/intent/Site/first-view-light-shader/decision.md"
+  - "_docs/qa/Site/first-view-light-shader/test-plan.md"
   - "_docs/qa/Site/first-view-light-shader/verification.md"
 related_issues: []
 related_prs: []
@@ -27,115 +30,114 @@ related_prs: []
 - Intent: `_docs/intent/Site/top-page-rebuild/decision.md`
 - Site purpose: `_docs/intent/Site/otibo-dev-site-purpose/decision.md`
 - Visual authority: `_docs/reference/Site/visual-canon/reference.md`
+- First View authority: `_docs/intent/Site/first-view-light-shader/decision.md`
+- First View QA: `_docs/qa/Site/first-view-light-shader/test-plan.md` / `verification.md`
 
 ## Quality Goal
 
-First Viewの視覚基準を維持しながら、旧section構成に依存せず、「First View → principle → products →
-contact / 所在」の順で3秒の印象と30秒の理解を実在する材料から成立させる。制作途中のshader-only
-stateや生成copyを公開可能な完成状態と混同しない。
+First Viewの正本を変更せずに参照し、旧section構成へ依存しない責務順で、3秒の印象と30秒の理解を
+実在する材料から成立させる。制作途中のshader-only state、owner未確認copy、架空または未確認の
+product情報を公開可能な完成状態と混同しない。
 
 ## Acceptance Criteria
 
-- AC-001: shader-only baselineはlocal限定で、production deploy対象から除外される。
-- AC-002: First View、短いprinciple、product紹介、contact / 所在の4段階がこの順で成立する。
-- AC-003: First Viewは光と`otibo`だけを維持する。
+- AC-001: shader-only baselineと局所wireframeはproduction deploy対象から除外される。
+- AC-002: 「見る → 読む → 確認する → 所在」の責務がこの順で成立し、固定section名や固定templateへの一致を完成条件にしない。
+- AC-003: First Viewは専用intent / QAの現行契約に適合し、top-page-rebuild側で値や実験条件を再定義せずに下流へ接続する。
 - AC-004: 30秒以内にotiboの実体、現行product、必要導線を事実から確認できる。
-- AC-005: principle、各productのname / description / status、contact / legal導線は承認済みsourceへ追跡できる。
-- AC-006: desktop / mobile、reduced motion、semantic structure、keyboard navigationが成立する。
-- AC-007: Next.js static exportとWorkers Static Assets dry-runが成功する。
-- AC-008: オーナーが3秒 / 30秒の体験とproduction visualを承認する。
+- AC-005: principle、各productのname / description / status、contact / legal導線はowner確認済みsourceと確認時点へ追跡でき、任意asset / destinationは実在する場合だけ表示される。
+- AC-006: desktop / mobile、reduced motion、semantic structure、keyboard navigationで責務順と操作が成立する。
+- AC-007: 必要なlegal routeを含むNext.js static exportとWorkers Static Assets dry-runが成功する。
+- AC-008: オーナーが3秒 / 30秒の体験、copy、production visualを承認する。
+
+## Decision Review Scope
+
+- DEC-001: 局所的なPASSをページ全体のdeploy可否へ誤って昇格していないか確認する。
+- DEC-002: 旧DOM、copy、Panda classを互換要件として復元していないか確認する。
+- DEC-003: First Viewの局所条件は専用intent / QAを参照し、トップページ側では接続と全体体験だけを判定しているか確認する。
+- DEC-004: 4段階が責務順として読め、固定section templateへの機械的一致を要求していないか確認する。
+- DEC-005: owner未確認copyを完成copyとして扱っていないか確認する。
+- DEC-006: product card、UI断片、grid、特定media数を要件として固定していないか確認する。
+- DEC-007: product factsと任意asset / linkが実在sourceへ追跡でき、欠落を補作していないか確認する。
+- DEC-008: legal route、static export、asset-only deploymentを維持しているか確認する。
+- DEC-009: design-system primitiveの外観をsite側で重複定義せず、compositionだけを所有しているか確認する。
+- DEC-010: section / product境界が線の反復に依存せず、例外の線にcomponent上の意味があるか確認する。
 
 ## Intent-derived Invariants
 
-- INV-001: shader-only pageをproduction deployしない。
-- INV-002:旧section構成とPanda classを互換条件にしない。
-- INV-003: First Viewに説明、product、CTA、UI componentを追加しない。
-- INV-004: 4段階の責務順を維持しつつ、固定section templateを要求しない。
-- INV-005: owner未執筆copyを生成文で完成扱いにしない。
-- INV-006: product紹介をcard、UI断片、一覧gridのいずれかへ事前固定しない。
-- INV-007: 実在しない材料を表示しない。
-- INV-008: 法務routeとWorkers static exportを維持する。
-- INV-009: productごとに公開可能なname、owner確認済みdescription、確認時点に即したstatusを持つ。
-- INV-010: logo、UI / image、外部linkは実在する場合だけ使い、欠落を補作しない。
-- INV-011: First Viewはdesktop / mobileとも一画面高を維持する。
+- INV-001 (from DEC-001): shader-only pageをproduction deployしない。
+- INV-005 (from DEC-005): owner未執筆のbrand copyを生成文で完成扱いにしない。
+- INV-007 (from DEC-007): 実在しないproduct、status、UI componentを展示材料にしない。
+- INV-008 (from DEC-008): 法務route、static export、Workers Static Assetsを維持する。
+- INV-009 (from DEC-007): product紹介は公開可能なname、owner確認済みdescription、確認時点に即したstatusを必須情報とする。
+- INV-010 (from DEC-007): productのlogo、UI / image、外部linkは実在する場合だけ使い、欠落を補うために捏造しない。
 
 ## Risk Assessment
 
 - **Risk level**: Medium
 - **Risk rationale**: information architecture、visual composition、copy、CSS stackを再判断し、完成判定に人間の視覚・意味理解が必要になる。
-- **Regression risk**: First Viewの純度低下、旧sectionの無意識な復元、法務導線の欠落、mobileでの体験順序崩れ。
+- **Regression risk**: First View正本との不一致、旧sectionの無意識な復元、法務導線の欠落、mobileでの責務順崩れ。
 - **Data safety risk**: なし。永続データや外部入力を扱わない。
 - **Security / privacy risk**: 公開copyへ個人情報やsecretを混入させない。法務の実値は既存build variable運用を維持する。
-- **UX risk**: shaderだけで満足して説明責任を欠く、principleが長いmanifestoになる、product紹介を特定形式へ固定して追加性を損なう、contactが二度目の見せ場になる。
-- **Agent misbehavior risk**: 旧pageを整えることで進捗とする、生成copyで穴を埋める、product cardやUI断片を要件と誤認する。
+- **UX risk**: First Viewだけで満足して説明責任を欠く、principleが長いmanifestoになる、product紹介を特定形式へ固定する、contactが二度目の見せ場になる。
+- **Agent misbehavior risk**: 旧pageの復元を進捗とする、生成copyで穴を埋める、First Viewの実験値を再複製する、placeholderを実在情報として扱う。
 
 ## Test Strategy
 
 - **Content verification**: owner copy、product name / description / status、任意asset / link、contact / legal URLのsourceと確認日を記録する。
-- **Prototype QA**: 4段階の全体compositionとproduct紹介の候補表現をdesktop / mobileで撮影し、採否理由を残す。
-- **Product module wireframe**: status badge、identity、description、実在link、可変枚数mediaのreading orderをオーナースケッチと比較する。
-- **Integration QA**: First Viewからprinciple、product、contact / legalへ至る時間軸とsemantic orderを確認する。
-- **Automated**: lint、typecheck、unit、build、Wrangler dry-run。
+- **Prototype QA**: 責務順とproduct紹介の候補表現をdesktop / mobileで確認し、特定templateではなくWhyへの適合で採否を判定する。
+- **First View conformance**: 専用intent / QAの現行verdictとpage integrationを確認し、shader値や実験variantをこのQAで再検証しない。
+- **Integration QA**: First Viewからprinciple、product、contact / legalへ至る時間軸、semantic order、keyboard orderを確認する。
+- **Automated**: lint、typecheck、unit、build、Wrangler dry-run、docs validators。
 - **Manual**: 3秒 / 30秒、visual canon、copy voiceをオーナーが判定する。
-- **Diff review**: legacy restoration、placeholder、fake evidence、deployment boundaryを確認する。
+- **Diff review**: legacy restoration、placeholder、fake evidence、design-system重複、deployment boundaryを確認する。
 
 ## Test Matrix
 
-| ID | Source | Requirement / Invariant | Test Type | Command / File | Expected Evidence | Status |
+| ID | Source | Requirement / Optional Invariant | Test Type | Command / File | Expected Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| AC-001 | TODO | shader-onlyはlocal限定 | Docs + Deployment gate | Plan / TODO / deploy checklist | deploy candidateにならない | planned |
-| AC-002 | TODO | 4段階の責務順 | Prototype + Manual | screenshot / owner verdict | 各責務が順番に成立する | planned |
-| AC-003 | TODO | First View純度 | DOM + Screenshot | `/` first viewport | 光と`otibo`のみ | planned |
+| AC-001 | TODO | 制作基盤とdeploy candidateの分離 | Docs + Deployment gate | Plan / TODO / verification | 未完成状態がdeploy candidateにならない | planned |
+| AC-002 | DEC-004 | 責務順とtemplate自由度 | Design + Browser | desktop / mobile composition | 責務順を保ち、section名や構造は目的に応じる | planned |
+| AC-003 | DEC-003 | First View正本への適合 | Docs + Integration | First View intent / QA、`app/page.tsx` | 重複契約なしで下流へ接続する | planned |
 | AC-004 | TODO | 30秒の理解 | Manual + Content review | owner / visitor walkthrough | 実体・product・導線を確認可能 | planned |
-| AC-005 | TODO | content contractの実在性 | Source review | content contract / source inventory | 必須情報にsourceと確認日あり | planned |
-| AC-006 | TODO | responsive / a11y | Browser + Static | desktop / mobile / reduced / keyboard | 体験順序と操作が成立 | planned |
-| AC-007 | TODO | static deployment | Build + Deployment | `npm run build && npm run deploy:dry-run` | static routes / assetsを受理 | planned |
-| AC-008 | TODO | owner verdict | Manual | verification review | 3秒 / 30秒 / visual承認 | planned |
-| INV-001 | intent | local-only baseline | Diff + Docs | deploy docs / verification | shader-onlyを公開しない | planned |
-| INV-002 | intent | legacy非互換 | Diff review | `app/page.tsx` / styles | 旧構成の復元を要求しない | planned |
-| INV-003 | intent | First View境界 | DOM + Static | First View component |追加contentなし | planned |
-| INV-004 | intent | 4段階の順序とtemplateの分離 | Design review | composition rationale | 責務順を保ち、固定section名を目的化しない | planned |
-| INV-005 | intent | owner copy | Content review | content contract | 生成copyで穴埋めしない | planned |
-| INV-006 | intent | product表現を事前固定しない | Design review | product composition rationale | card / UI断片 / gridを要件化しない | planned |
-| INV-007 | intent | real evidence | Source review | component / product source | fake materialなし | planned |
-| INV-008 | intent | legal / Workers維持 | Build + HTTP smoke | route list / dry-run | 全route維持 | planned |
+| AC-005 | DEC-005 / DEC-007 | content contractの実在性 | Source review | content source inventory | 必須情報にsourceと確認時点がある | planned |
+| AC-006 | TODO | responsive / accessibility | Browser + Static | desktop / mobile / reduced / keyboard | 責務順と操作が成立する | planned |
+| AC-007 | DEC-008 | static deployment | Build + HTTP smoke | `npm run build && npm run deploy:dry-run` | legal routeとstatic assetsを受理する | planned |
+| AC-008 | TODO | owner verdict | Manual | verification review | 3秒 / 30秒 / copy / visual承認 | planned |
+| INV-001 | intent | incomplete state isolation | Diff + Docs | route list / deploy checklist | shader-only / wireframeを公開しない | planned |
+| INV-005 | intent | owner-authored copy | Content review | content source inventory | 生成copyで未確認箇所を完成扱いしない | planned |
+| INV-007 | intent | real evidence only | Source + DOM review | product source / rendered DOM | 架空の材料がない | planned |
+| INV-008 | intent | legal / asset-only deployment | Build + HTTP smoke | route list / dry-run | 必要routeとdeployment契約を維持する | planned |
 | INV-009 | intent | product必須情報 | Content review | product source inventory | name / description / statusが確認済み | planned |
-| INV-010 | intent | 任意情報を補作しない | Content + Diff review | asset / link inventory | 実在asset / linkだけを使用 | planned |
-| INV-011 | intent | First Viewの一画面高 | Browser QA | `1440x900` / `390x844` | 両viewportでFirst View高がviewport高と一致する | planned |
-| INV-012 | intent | editorial primitiveの重複定義を防ぐ | Static + Browser | imports / rendered product modules | LogoFrame / MediaFrame / textStyleが適用される | verified |
-| INV-013 | intent | border / divider依存を避ける | Static + Browser | top-page TSX / CSS / screenshot | 余白と面でsection / product境界を判別できる | verified |
+| INV-010 | intent | optional material authenticity | Content + Diff review | asset / link inventory | 実在asset / linkだけを使用する | planned |
 
 ## Manual QA Checklist
 
 - [ ] 3秒で一瞥の質が成立し、様式名や説明の読解を要求しない。
-- [ ] 30秒でotiboの実体とproductの現況を理解できる。
-- [ ] First Viewと下流の表示責務が混ざっていない。
-- [ ] principleが短くotiboの意味を渡し、長いmanifestoになっていない。
-- [ ] product紹介がname / description / statusを渡し、特定の表示形式を目的化していない。
-- [ ] logo、UI / image、linkの欠落を架空の材料で補っていない。
-- [ ] status badgeがlogo / product nameの上で属性として読め、destination linkと混同しない。
-- [ ] UI画像が1枚でも成立し、2枚以上では同一productのmedia群として読める。
-- [ ] desktop / mobileともproduct単位のreading orderが維持される。
-- [ ] prototype placeholderがproduction route / exportへ混入していない。
-- [ ] logo fallbackとmedia empty stateが`@otibo/ui`のprimitiveとして表示され、site CSSで枠の外観を再定義していない。
-- [ ] Products外枠、heading divider、product separator、caption dividerがなくても情報単位を判別できる。
-- [ ] copyがオーナーの声として読める。
-- [ ] desktop / mobileで情報順序と余白が意図どおりである。
-- [ ] legal / contact導線が発見できるが、二度目の見せ場になっていない。
-- [ ] mobileでFirst Viewが一画面高を保ち、Principle、product情報、media、Contactの順に読める。
+- [ ] 30秒でotiboの実体、現行product、必要導線を理解できる。
+- [x] First Viewの局所契約が専用intent / QAと一致し、下流の責務をFirst Viewへ混ぜていない。
+- [x] principleが短くotiboの意味を渡し、長いmanifestoになっていない。
+- [x] product紹介がname / description / statusを渡し、特定の表示形式を目的化していない。
+- [x] logo、UI / image、linkの欠落を架空の材料で補っていない。
+- [ ] UI画像が1枚でも成立し、複数枚では同一productのmedia群として読める。
+- [x] desktop / mobileともproduct単位とpage全体のreading orderが維持される。
+- [x] design-system primitiveの外観をsite CSSで再定義していない。
+- [x] 外枠やdividerの反復なしに情報単位を判別できる。
+- [x] legal / contact導線が発見できるが、二度目の見せ場になっていない。
+- [ ] copyとproduction visualをownerが承認している。
 
 ## Regression Checklist
 
-- [ ] shaderの光層、wordmark位置、motion lifecycleを壊していない。
-- [ ] 旧Products / About / Contact / Footerを惰性で復元していない。
-- [ ] placeholder、debug label、未確認claimが公開DOMにない。
-- [ ] hidden / reduced motionで不要なframeを継続しない。
-- [ ] 法務routeと`/medo/account-deletion/` URLを変更していない。
-- [ ] static exportとWorkers asset-only構成を維持する。
+- [x] First View専用intent / QAの現行契約とpage integrationが矛盾していない。
+- [x] 旧Products / About / Contact / Footerを惰性で復元していない。
+- [x] placeholder、debug label、未確認claimがproduction DOMにない。
+- [ ] product description / status / destinationにsourceと確認時点がある。
+- [x] 必要な法務routeと`/medo/account-deletion/` URLを変更していない。
+- [x] static exportとWorkers asset-only構成を維持する。
 
 ## Out of Scope
 
-- shaderの新しい美観探索。
+- First Viewのshader、scroll係数、asset、実験variantの設計と局所検証。専用intent / QAで扱う。
 - 新規product、store listing、法務本文の制作。
 - 展示専用`@otibo/ui` componentの開発。
 - server runtime / OpenNext導入。

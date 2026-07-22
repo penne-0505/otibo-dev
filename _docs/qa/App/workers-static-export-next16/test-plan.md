@@ -4,8 +4,9 @@ status: active
 draft_status: n/a
 qa_status: planned
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-10
+updated_at: 2026-07-17
 references:
   - "_docs/intent/App/workers-static-export-next16/decision.md"
   - "_docs/plan/App/workers-static-export-next16/plan.md"
@@ -38,13 +39,18 @@ Cloudflare Workers Static Assets が受理することを、local build と depl
 - AC-005: Node.js 22 以上と build-time environment variable の運用境界が文書化される。
 - AC-006: OpenNext、Worker script、runtime binding を導入していない。
 
+## Decision Review Scope
+
+- DEC-001: static export artifactとWorkers Static Assets。
+- DEC-002: asset-only runtime boundary。
+- DEC-003: build-time environment semantics。
+- DEC-004: reproducible framework / deployment tooling。
+
 ## Intent-derived Invariants
 
 - INV-001: production artifact は Next.js static export の `out/` である。
 - INV-002: deploy 構成に Worker script、OpenNext adapter、runtime binding を追加しない。
 - INV-003: build-time value を Workers runtime environment variable として扱わない。
-- INV-004: package baseline は Node.js 22 以上と lockfile 内の Wrangler によって再現できる。
-- INV-005: First View 統合前に dependency tree、Panda codegen、Next build、Wrangler dry-run が成功する。
 
 ## Risk Assessment
 
@@ -66,7 +72,7 @@ Cloudflare Workers Static Assets が受理することを、local build と depl
 
 ## Test Matrix
 
-| ID | Source | Requirement / Invariant | Test Type | Command / File | Expected Evidence | Status |
+| ID | Source | Requirement / Optional Invariant | Test Type | Command / File | Expected Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-001 | TODO | dependency compatibility | Dependency | `npm ls --depth=1` | invalid peer / missing dependency なし | planned |
 | AC-002 | TODO | local quality gates | Static + Integration | `npm run lint && npm run typecheck && npm test && npm run build` | 全 command exit 0 | planned |
@@ -77,8 +83,6 @@ Cloudflare Workers Static Assets が受理することを、local build と depl
 | INV-001 | intent | `out/` artifact | Integration | AC-003 と同じ | Wrangler source と build output が一致 | planned |
 | INV-002 | intent | asset-only deployment | Static | `wrangler.jsonc` schema / diff review | assets 以外の runtime entry なし | planned |
 | INV-003 | intent | env boundary | Docs | AC-005 と同じ | runtime binding と誤記しない | planned |
-| INV-004 | intent | reproducible toolchain | Dependency | `node --version`、`npm ls wrangler` | Node >=22、local Wrangler を解決 | planned |
-| INV-005 | intent | First View 前の platform gate | Sequential QA | dependency / codegen / build / dry-run | 全 gate の時系列証跡 | planned |
 
 ## Manual QA Checklist
 

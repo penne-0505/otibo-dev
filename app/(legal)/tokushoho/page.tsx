@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-// intent: INV-005 (Legal/legal-pages) — noindex は明示的決定
+// intent: DEC-005 (Legal/legal-pages) — robots policy follows each page's publication purpose instead of a default.
 // 判断: 特商法表記は検索流入可。事業者情報として公開される性質のドキュメント。
 export const metadata: Metadata = {
   title: "特定商取引法に基づく表記 | otibo",

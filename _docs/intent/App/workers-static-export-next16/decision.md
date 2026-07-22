@@ -2,8 +2,9 @@
 title: "Intent: Keep Next.js on Workers Static Assets"
 status: active
 draft_status: n/a
+intent_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-10
+updated_at: 2026-07-17
 references:
   - "_docs/plan/App/workers-static-export-next16/plan.md"
   - "_docs/qa/App/workers-static-export-next16/test-plan.md"
@@ -21,27 +22,43 @@ Wrangler Static Assets によって Worker script なしで配布できる。一
 First View の本番統合前に更新が必要であり、`@otibo/ui@0.2.0` は React 19 と Panda CSS 1.11 を
 consumer baseline として利用できる。
 
-## Decision
+## Decisions
 
-- Next.js 16、React 19、Panda CSS 1.11、`@otibo/ui@0.2.0` を基盤とする。
-- Cloudflare 上の実行形態は Workers Static Assets に固定する。
-- Next.js は `output: "export"` を維持し、deploy artifact は `out/` とする。
-- OpenNext や server runtime adapter は、静的サイトに runtime 要件が生じるまで導入しない。
-- `process.env` を参照するページ値は Next build 時に確定する build variable として扱い、Workers runtime binding と説明しない。
-- Wrangler は devDependency と script に固定し、Node.js 22 以上を package engine と build 条件にする。
+### DEC-001: production artifactをstatic exportへ閉じる
 
-## Alternatives
+- **What**: Next.jsの`output: "export"`で生成する`out/`を
+  Cloudflare Workers Static Assetsへ配布する。
+- **Why**: 固定されたWorkers custom domainとasset deliveryを使いながら、
+  静的siteに不要なserver runtimeを持ち込まないため。
+- **Change freedom**: framework version、route、asset構成は変更できる。
+  artifact形式を変える場合はdeployment判断を更新する。
 
-- **Next.js 14 / React 18 を維持する**: 不採用。新しい First View を旧基盤へ結合した後に framework migration を重ねることになる。
-- **OpenNext を先に導入する**: 不採用。現在の route は static export 可能で、server runtime の運用面と bundle を増やす理由がない。
-- **Cloudflare Pages へ変更する**: 不採用。deploy target は Workers が固定条件である。
-- **Wrangler を global install のまま使う**: 不採用。CI と開発環境で deploy behavior がずれる。
+### DEC-002: server runtimeを要件発生まで導入しない
 
-## Rationale
+- **What**: Worker script、OpenNext adapter、runtime bindingを追加しない。
+- **Why**: 現在のrouteはstatic export可能で、server runtimeの運用面と
+  bundleを増やす理由がないため。
+- **Change freedom**: runtime要件が発生した場合は、別Intentとmigration QAを
+  作成して変更できる。
+- **Why not**: OpenNextの先行導入は、使わないruntimeの保守面を増やす。
 
-Workers Static Assets は Cloudflare Workers の custom domain と asset delivery を使いながら、静的な
-Next.js site に不要な server runtime を持ち込まない。framework upgrade を First View 統合より先に
-閉じることで、視覚実装の回帰と platform migration の回帰を分離できる。
+### DEC-003: page環境値をbuild-time valueとして扱う
+
+- **What**: `process.env`由来のpage値はNext build時に確定し、
+  Workers runtime bindingとは説明しない。
+- **Why**: production artifactが静的HTML / assetsであり、request時に
+  runtime値を解決しないため。
+- **Change freedom**: build valueの供給元は変更できる。runtime bindingへ
+  変える場合はDEC-002も更新する。
+
+### DEC-004: frameworkとdeployment toolを再現可能にする
+
+- **What**: Next.js 16 / React 19、Node.js 22以上、lockfile内Wranglerを
+  install / build / deploy baselineとする。
+- **Why**: First View統合前にframework migrationを閉じて回帰原因を分離し、
+  global WranglerとCIのdeploy behavior差を防ぐため。
+- **Change freedom**: compatibility gateを満たすversionへ更新できる。
+  package version自体は恒久契約にしない。
 
 ## Consequences / Impact
 
@@ -58,13 +75,21 @@ Next.js site に不要な server runtime を持ち込まない。framework upgra
 
 ## Intent-derived Invariants
 
-- INV-001: production artifact は Next.js static export の `out/` である。
-- INV-002: deploy 構成に Worker script、OpenNext adapter、runtime binding を追加しない。
-- INV-003: build-time value を Workers runtime environment variable として扱わない。
-- INV-004: package baseline は Node.js 22 以上と lockfile 内の Wrangler によって再現できる。
-- INV-005: First View 統合前に dependency tree、Panda codegen、Next build、Wrangler dry-run が成功する。
+- INV-001 (from DEC-001): production artifactはNext.js static exportの`out/`である。
+- INV-002 (from DEC-002): asset-only判断がactiveな間、deploy構成にWorker script、OpenNext adapter、runtime bindingを追加しない。
+- INV-003 (from DEC-003): build-time valueをWorkers runtime environment variableとして扱わない。
 
-## Related Decisions
+## Enforced in (optional)
 
-- `_docs/intent/Site/first-view-light-shader/decision.md`
-- `_docs/intent/App/top-page-initial/decision.md`
+- DEC-001 / INV-001: `next.config.mjs`、`out/`、Wrangler assets directory。
+- DEC-002 / INV-002: `wrangler.jsonc`とdeploy dry-run。
+- DEC-003 / INV-003: page source、QUICKSTART、build/deploy手順。
+- DEC-004: package engine、lockfile、local npm scripts。
+
+## Rollback / Follow-ups
+
+- server runtimeが必要になるまではasset-only構成を維持する。必要になった場合は
+  DEC-001〜DEC-003を更新する別migrationとして扱う。
+- 関連判断:
+  `_docs/intent/Site/first-view-light-shader/decision.md`、
+  `_docs/intent/App/top-page-initial/decision.md`。

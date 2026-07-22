@@ -4,8 +4,9 @@ status: active
 draft_status: n/a
 qa_status: in-progress
 risk: Medium
+qa_schema: 2
 created_at: 2026-07-11
-updated_at: 2026-07-11
+updated_at: 2026-07-17
 references:
   - "_docs/intent/App/otibo-ui-0-3-migration/decision.md"
   - "_docs/plan/App/otibo-ui-0-3-migration/plan.md"
@@ -33,14 +34,15 @@ related_prs: []
 - AC-004: First Viewとtop page構成を維持する。
 - AC-005: automated build / deploy gateが成功する。
 
+## Decision Review Scope
+
+- DEC-001: self-contained CSSとconsumer-side Panda非依存。
+- DEC-002: library primitiveとpage compositionの所有境界。
+- DEC-003: migration regressionとartifact削除の分離。
+
 ## Intent-derived Invariants
 
-- INV-001: styles.cssをrootで一度だけ読む。
 - INV-002: consumer-side Pandaを参照しない。
-- INV-003: 法務routeを変更しない。
-- INV-004: First Viewと4段階順を維持する。
-- INV-005: ScrollAreaはmedia railだけを担当する。
-- INV-006: Workers static exportを維持する。
 
 ## Risk Assessment
 
@@ -62,19 +64,14 @@ related_prs: []
 
 ## Test Matrix
 
-| ID | Source | Requirement / Invariant | Test Type | Command / File | Expected Evidence | Status |
+| ID | Source | Requirement / Optional Invariant | Test Type | Command / File | Expected Evidence | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-001 | TODO | 0.3.0 styles | dependency + build | `npm ls` / `npm run build` | version / CSS load | verified |
 | AC-002 | TODO | Panda非依存 | grep | app / package / config | runtime参照0 | verified |
 | AC-003 | TODO | legal維持 | diff + browser | legal routes | content / URLs維持 | verified |
 | AC-004 | TODO | top維持 | browser | `/` | 4段階と100svh | verified |
 | AC-005 | TODO | gates | automated | npm scripts | all pass | verified |
-| INV-001 | intent | root CSS一度 | grep | app/layout.tsx | import 1件 | verified |
 | INV-002 | intent | codegenなし | grep | package / app | 参照0 | verified |
-| INV-003 | intent | legal不変 | diff | app/(legal) | style以外の変更なし | verified |
-| INV-004 | intent | visual基盤 | browser | desktop / mobile | sizing / order維持 | verified |
-| INV-005 | intent | ScrollArea境界 | diff + browser | top page | media rail限定 | verified |
-| INV-006 | intent | Workers | build | dry-run | success | verified |
 
 ## Manual QA Checklist
 

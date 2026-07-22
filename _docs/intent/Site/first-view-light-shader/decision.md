@@ -4,7 +4,7 @@ status: active
 draft_status: n/a
 intent_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-20
+updated_at: 2026-07-22
 references:
   - "_docs/plan/Site/first-view-light-shader/plan.md"
   - "_docs/qa/Site/first-view-light-shader/test-plan.md"
@@ -113,6 +113,22 @@ First View は、光の場と `otibo` を結びつけ、一瞥の印象を作る
 - **Why not**: height、fine height、curvatureを最終RGBへ直接加算する方式、影色の減算、完成した寒色面と暖色面のopacity mixは、異なる光学要因を同じ見た目へ独立に描き足し、光量の因果を追えなくするため採らない。本段階ではmulti-pass bloomを導入せず、まずno-bloomの出射光を成立させる。
 - **Revisit when**: scene-referred radianceだけでは意図した眩しさに到達せず、高輝度域から派生するsensor response / bloomが必要と、比較表示で確認されたとき。
 
+### DEC-012: Layeredの色軌跡を入射光とsensor responseへ移し、heightの局所可視率を同じ光輸送へ接続する
+
+- **What**: Layeredで成立していた寒色ambient、cream色の中間光、暖色の高輝度域、白芯への色軌跡を、完成RGBの目標色ではなく輝度正規化した入射光のchromaticityとsensor responseとして再構成する。macroのbeam / halo / shelf / veilはscalar energy fieldのまま保持し、height mapはnormal、roughness、ambient visibility、direct-onlyのbounded self-visibilityを介して同じradiance計算へ作用させる。高輝度域の白はcomponent別の色塗りではなく、scene radianceに対するluminance-preserving shoulderと高輝度crosstalkから生じさせる。scroll終端のsurface whiteも完成RGBへ白をmixせず、scene radianceへ決定的な露光倍率を掛けてsensor response内で各channelを飽和させる。
+- **Why**: DEC-011のRadianceは背景から中間光への勾配を改善した一方、ambientがteal / greenへ、directの中間域が赤橙へ偏り、白芯との遷移が唐突になった。またheight由来の法線を弱める保護により、物理scene比較で確認した局所的な粒立ちと光方向への因果が十分に戻らなかった。色の階層を光源・散乱・sensorの条件として扱い、局所遮蔽をdirect irradianceへ閉じれば、Layeredの構図美と一つの光輸送を両立できるため。
+- **Change freedom**: chromaticity basis、sensor matrix、tone shoulder、高輝度crosstalk、self-shadowのstep数と寄与量、将来のHDR radiance由来bloomは、Layeredの色軌跡、macro構図、局所因果、決定性、responsive / scroll / exit washを満たす限り変更できる。
+- **Why not**: Layeredのpaletteや終端白を最終RGBへmix / addする方式、L1〜L3の物理scene全体によるbeam geometryの置換、height / curvatureのRGB直接加算、任意位置のglowは採らない。no-bloom像の輸送とsensor responseが成立する前にmulti-pass bloomで差を隠さない。
+- **Revisit when**: no-bloom像で高輝度radianceに由来する画面内散乱だけが不足し、オーナー比較と計測の双方でHDR由来bloomの追加価値が確認されたとき。
+
+### DEC-013: 構図field内の光学手掛かりを一つの仮想光源と遮蔽物へ従属させる
+
+- **What**: 既存のbeam / halo / shelfをLayered由来のmacro envelopeとして維持し、その内側のfragmentごとの入射方向、有限光源による半影、height-mapのdirect response、高輝度radiance由来のveiling glareを、一つの仮想面光源と遮蔽物の配置から派生させる。面光源は同じ中心を共有する広い基礎radianceと狭い高輝度coreのradiance増分としてsampleし、遮蔽、距離減衰、emitter / receiver cosine、anisotropic GGXをsample単位で積分してからmacro energyへ接続する。emitter radianceは遮蔽状態にかかわらず固定し、各fragmentが見るsource coverage / solid angleとBRDFだけで受光量を変える。広いemitterと小coreはそれぞれのdiffuse / specularを別radiance pathとして保持し、遮蔽で失ったcore energyを粗いlobeやambientへ再配分しない。BRDFを入射量で正規化する場合も狭いcoreのsource coverageを保持し、遮蔽されたcoreが半影外縁へ鋭いglintを作らないようにする。高輝度core由来の解析PSFは同じ遮蔽物の投影距離へ従い、PSF半径の範囲だけ境界を跨いでglareを残す。可視microstructureは単一のcanonical height近傍だけから導き、同じ高さ場のfine / broad normal、curvature、roughness、tangent、ambient visibility、direct-only self-visibilityとして光輸送へ作用させる。scrollでsourceを正面寄りへ動かしてもcanonical normalの計測結果自体は弱めず、入射方向、source geometry、radiance、sensor saturationによってdetailの見え方を変える。macro envelopeはscene全体を置換するmaskではなく、仮想sceneの照射域を構図へ拘束するenergy fieldとして扱う。
+- **Why**: DEC-012のcheckpointは色軌跡と局所detailを改善した一方、境界softness、法線応答、白芯周辺のにじみが独立した数式として見え、同じ物理原因を示さなかった。規則的なheight detailも暗部から明部まで同じ向きで読めるため、実在光より模様のある面へ明るい帯を塗った印象が残った。その後のcheckpoint 42〜50では、遮蔽で失ったcore energyを広いlobeへ補償し、broad / core incident energyを一つのmaterial responseへ通したため、白芯がsensor飽和へ届かず、lit / unlit contrastが低下し、高周波responseが選択的なfacet反射ではなく白点noiseとして読まれた。固定emitter radianceとvisible solid angleへ戻し、広いsourceと小coreのBRDF pathを分ければ、部分遮蔽のladder、密な飽和白芯、half-vectorに揃うmicrohighlightを同じ原因から生じさせられるため。
+- **Change freedom**: 光源位置と広い成分 / coreの面積、遮蔽物の仮想距離、決定的sample数、canonical height近傍のsample幅、direct normal / roughness、anisotropy、HDR由来glareとsensor露光の範囲は、一瞥で同じ光源方向と遮蔽物を推定でき、Layeredの構図・色階層・白芯、決定性、responsive / scroll / exit washを保つ限り反復できる。参照写真は表面形状の模倣ではなく、微細構造へ当たる光の選択性と焦点階層を判断する材料として使う。目視した物理的整合と中間光部の微細表現を採否の主判断とし、面積・重心・frame時間は回帰guardrailに限定する。
+- **Why not**: 独立したshadow色、任意位置のglow、遮蔽されたsourceへ残す非ゼロのglare floor、遮蔽で失ったcore energyを粗いlobe / ambientへ補償する処理、broad / core incident energyをBRDF評価前に一つへ混ぜる処理、画面空間grainの一様増幅、固定周期の波形、補助ridge / wave / carrier、回転・倍率・offsetの異なる遠隔height sampleの合成、遮蔽率を正規化で失ったcore glint、孤立した輝点、L1〜L3の物理sceneによるmacro構図全体の置換は採らない。一つの表面と追跡できない形状を追加して見かけ上の情報量だけを増やさない。
+- **Revisit when**: 単一passで高輝度radiance由来の画面内散乱を十分に表現できず、no-glare像との操作比較でmulti-pass bloomだけが不足要因だと確認されたとき。
+
 ## Consequences / Impact
 
 - shader source、resource 初期化、render loop を production module として責務分離する。
@@ -140,6 +156,8 @@ First View は、光の場と `otibo` を結びつけ、一瞥の印象を作る
 - DEC-009の比較では、macro compositionの一致とmaterial responseの増加を別指標で評価し、構図差を微細リアリティの改善として扱わない。
 - DEC-010の収束では、3000のshader hashが採用3019と一致し、3001にcanvas / shader / overlayが混入しないことを別々に確認する。
 - DEC-011では、height由来の値がmaterial parameter以外から最終RGBへ加算されていないこと、shadow fieldがdirect visibilityとして作用すること、macro構図とscroll / responsiveが保たれることを別々に確認する。
+- DEC-012では、色basisがenergyから分離されていること、高輝度の白がsensor responseから連続的に現れること、local self-visibilityがdirect項だけへ作用すること、Layeredの色軌跡とmacro構図が保たれることを別々に確認する。
+- DEC-013では、境界の半影、fragmentごとの入射方向、height response、広い光源と同心coreの反射、glareが同じ仮想光源・遮蔽物へ追跡できることを確認する。中間光部では均一な布目や孤立glintではなく、canonical heightの微差のうち入射・粗さ条件が揃う箇所だけが狭く解像し、隣接する暗部との局所コントラストとしてdetailが読めることを確認する。数値guardrailより、desktop / mobile / scrollの各像が一瞥で実在光として読めるかを優先する。
 
 ## Intent-derived Invariants
 

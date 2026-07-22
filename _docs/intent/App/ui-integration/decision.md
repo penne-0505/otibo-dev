@@ -1,10 +1,11 @@
 ---
 title: "Intent: Integrate @otibo/ui design system into otibo.dev"
-status: active
+status: superseded
 draft_status: n/a
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/intent/App/otibo-ui-0-3-migration/decision.md"
   - "_docs/plan/App/ui-integration/plan.md"
   - "_docs/qa/App/ui-integration/test-plan.md"
   - "_docs/intent/App/scaffold/decision.md"
@@ -102,7 +103,7 @@ related_prs: []
 
 最初 namespace 形式(`<Field.Root>`)で書いたが、`next build` の static page prerender で:
 
-```
+```text
 Error: Could not find the module
   "/home/.../node_modules/@otibo/ui/dist/index.js#Field#Root"
   in the React Client Manifest.

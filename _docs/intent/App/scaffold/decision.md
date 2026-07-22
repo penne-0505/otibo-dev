@@ -1,10 +1,11 @@
 ---
 title: "Intent: Initial Next.js + Panda scaffold for otibo.dev"
-status: active
+status: superseded
 draft_status: n/a
 created_at: 2026-06-21
-updated_at: 2026-06-21
+updated_at: 2026-07-17
 references:
+  - "_docs/intent/App/workers-static-export-next16/decision.md"
   - "_docs/plan/App/scaffold/plan.md"
   - "_docs/qa/App/scaffold/test-plan.md"
 related_issues: []
