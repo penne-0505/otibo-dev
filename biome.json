@@ -28,6 +28,7 @@
     "includes": [
       "**",
       "!**/node_modules",
+      "!**/worktrees",
       "!**/.next",
       "!**/out",
       "!**/styled-system",

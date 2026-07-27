@@ -3,7 +3,7 @@ title: "Plan: Rebuild the top page from the light shader foundation"
 status: active
 draft_status: n/a
 created_at: 2026-07-10
-updated_at: 2026-07-16
+updated_at: 2026-07-28
 references:
   - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/qa/Site/top-page-rebuild/test-plan.md"
@@ -164,6 +164,26 @@ production deploy しない。
 現段階ではMedo iconと3製品のrepo根拠付き文言だけをNext.js初版へ取り込む。SaraeのQA screenshotは
 検証証跡であり掲載用assetには転用しない。StashのFlutter標準AppIconを製品logoと誤認させず、
 未確認destinationを仮linkで補わない。
+
+### Product source re-confirmation — 2026-07-28
+
+Publication Gateの「公開直前に再確認されている」を満たすため、2026-07-11 inventoryを実装実態へ照合し直した。
+
+| Product | Status (before → after) | 根拠 |
+| --- | --- | --- |
+| Medo | `プロトタイプ` → `テスト中` | オーナー確認。ストア公開が近く、実態がREADME記載の「プロトタイプ兼基礎実装」より進んでいる。`Legal-Chore-13`のEFFECTIVE_DATE設定と連動する。 |
+| Sarae | `プロトタイプ` → `構想中` | repoに実装が存在しない。2026-07-14のinitial commit以降、docs-driven templateと設計ドキュメントのみ。 |
+| Stash | `開発中`（変更なし） | `lib`配下に41のDartファイルがあり、開発中の実装として整合する。 |
+
+description正本の訂正:
+
+- Saraeのdescription出典を`/home/penne/dev/active/sarae/README.md`から
+  `/home/penne/dev/active/sarae/_docs/draft/Core/product-concept/notes.md`へ変更する。前者は
+  docs-driven templateのREADMEへ置き換わっており、製品記述を含まない。後者は学習思想、学習循環、
+  Outputの位置づけを記録しており、掲載中の一文と整合する。
+- Saraeは実装を持たないが、Content Contractは任意情報のないproductの掲載を許容している。status表記が
+  実態と一致していることを掲載条件とする。
+- Medo / Stashのdescription出典は各repo READMEのまま変更しない。
 
 ## Tasks
 

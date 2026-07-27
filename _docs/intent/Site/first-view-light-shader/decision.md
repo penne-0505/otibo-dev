@@ -4,7 +4,7 @@ status: active
 draft_status: n/a
 intent_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-22
+updated_at: 2026-07-28
 references:
   - "_docs/plan/Site/first-view-light-shader/plan.md"
   - "_docs/qa/Site/first-view-light-shader/test-plan.md"
@@ -145,6 +145,23 @@ First View は、光の場と `otibo` を結びつけ、一瞥の印象を作る
 - **Why not**: broad slopeをfineと同程度にnormalへ戻す処理、pixel covariance / moment lobeで局所facetを置換する処理、screen-space grain / sharpen / ridge / wave / carrier、別height sampleの回転合成、receiver-space detail mask、白芯近傍だけへ後付けするfocus mask、detail専用のincident radiance、最終RGBへのtexture加算は採らない。これらは情報量を増やして見えても、波、ぼけ、白粒、均一模様のいずれかへ戻り、checkpoint 69で成立した「光が微細構造を見せている」因果を失うため。
 - **Revisit when**: checkpoint 69の方向性を保った反復でも素材の局所選択性が頭打ちになり、band separation、facet response、source geometry、sensor saturationのどこが原因かを操作比較で特定できたとき。単なる係数変更や別模様の追加を理由にこのdecisionを破棄しない。
 
+### DEC-016: 鏡面radianceだけを撮像PSFへ渡し、material detailとglareを分離する
+
+- **What**: checkpoint 69の固定emitter、broad / core radiance、macro composition、fine / coarse band separationをscene passの基準として保ち、linear scene radianceとspecular luminanceをHDR render targetへ出力する。撮像passはspecular成分だけを小半径PSFでenergy-preservingに再構成し、閾値を越える高輝度specularからだけ低energyの広域glareを加えた後、既存のscroll exposureとsensor responseを適用する。diffuse、ambient、height detailは空間filterへ通さない。body diffuse帯域とspecular平均方向はDEC-015のChange freedom内で比較できるが、撮像passはその不足を新しい模様で補わない。HDR color attachmentを安全に使えない環境ではscene pass内の既存sensor responseへ戻る。
+- **Why**: component診断でbody-onlyは均一な壁紙、specular-onlyは孤立白点として読まれ、single-pass final sensorは空間分布を主因として潰していなかった。checkpoint 70〜77でbody帯域、roughness、光源径、meso mean-normal、局所roughness統計を変えても、反射像は平滑な膜か白粒へ戻った。局所facetの選択性を再び平均化せず、既に計算された鏡面radianceだけを撮像系で隣接像へ結合すれば、materialの高周波を保ったまま、直接反射が点群ではなく有限の反射像として見える可能性を検証できるため。
+- **Change freedom**: HDR texture形式、specular情報のpacking、PSF sample pattern / 半径 / energy配分、高輝度glareの閾値と寄与量、single-pass fallback判定は、checkpoint 69のmaterial response、Layeredの色階層、決定性、event-driven lifecycle、resource上限を保つ限り変更できる。PSF半径は画面解像度に追従してよいが、素材模様やbeam位置を入力にして形を描かない。
+- **Why not**: scene全体のblur、diffuse / ambientのbloom、最終RGBへの任意glow、receiver-space focus mask、白点を隠すための強いveil、PSF出力からのsharpen、法線平均への回帰は採らない。これらは反射像ではなく画面効果としてdetailを作るか、checkpoint 69の局所contrastを失うため。
+- **Revisit when**: specular-only PSFでも孤立粒が連結した反射像へ変わらない、またはglareなしのcheckpoint 69より高解像感と実在光の読みが低下するとき。その場合はPSF係数を増やさず、canonical heightまたはsource geometry側の表現限界として再評価する。
+- **Revisit outcome (2026-07-23)**: 条件に該当した。69係数上のPSF単体はdesktop RMSE約0.3でほぼ不可視であり、反射像の連結はcoarse slopeをspecular平均方向へ戻したときに初めて起きた。その経路は69の解像感 / 実在光の圧倒を損ないowner未採用となった。したがってDEC-016の撮像passは現行baselineへ採用せず、作業基準はDEC-015 / checkpoint 69へ戻す。孤立白点の扱いは、coarse-directed specularや効かないPSFの再投入ではなく、canonical height / source geometry側の別経路として再評価する。
+
+### DEC-017: checkpoint 69をproduction暫定baselineとして凍結し、下流の完成を優先する
+
+- **What**: 現行`public/first-view/light.frag`（checkpoint 69 / band-separated）をFirst Viewのproduction暫定baselineとして確定する。AC-038が要求する飽和白芯とAC-039の残る目視範囲は未達のまま保留し、shaderの光・色・材質・height mapを変更対象から外して新規checkpointの作成を停止する。`Site-Feat-17`は下流のcontent充足、responsive / semantic / keyboard、build / deploy QAへ進む。wordmarkはtypographyとして詰める余地を残すが、**視認性の低さは意図であり欠陥ではない**。2026-07-28、オーナーは「文字は一つも載せたくないくらい」「見えないくらいがいい」と明示した。`otibo`が一瞥で読めないことをcontrast不足として扱わず、可読性を上げる変更を回帰修正として実施しない。
+- **Why**: 2026-07-28、オーナーがdesktop 1600x900の初期像を実見し、production可能な水準として明示的に受理した。teal影と暖色直射の色温度差、遮蔽エッジの不規則な輪郭、光帯の内側だけで解像する織り目が、狙っていた「静止面へ実際の光が当たった」読みをdesktopで成立させている。一方で探索は89 checkpointを要し、その間に29 / 50 / 52 / 89の4回、構造QAがPASSしたあとowner視覚レビューで棄却されている。69以降の伸びしろは投じる時間に対して明確に逓減している。加えて現状はshader-onlyのためINV-009によりdeploy禁止で、site全体がFirst Viewの収束待ちで停止している。visual品質の限界追求より、公開可能な一枚を先に成立させることの価値が上回ると判断した。
+- **Change freedom**: 凍結対象はshaderの光・色・材質・height mapに限る。wordmarkのtypography、scroll区間、exit wash、responsive、fallback、engine lifecycleは下流実装の都合で調整できる。ただしいずれも、固定scroll位置におけるcheckpoint 69の像そのものを変える変更を含めない。
+- **Why not**: AC-038 / AC-040の再探索、飽和白芯を出すためのexposure / sensor係数の追い込み、白点noiseへの新しい対処は、凍結期間中には採らない。これらは過去4回、構造QAのPASSを積んだあとにowner視覚レビューで棄却されており、deployable到達より先に着手すると同じ消耗を繰り返すため。
+- **Revisit when**: siteがdeployableになり、公開後の実利用でFirst Viewが弱点として現れたとき。または、checkpoint 69の解像感を損なわない新しい因果が示されたとき（DEC-015の`Revisit when`と同条件）。凍結解除の判断はowner実見を起点にし、構造QAの結果を解除理由にしない。
+
 ## Consequences / Impact
 
 - shader source、resource 初期化、render loop を production module として責務分離する。
@@ -176,6 +193,13 @@ First View は、光の場と `otibo` を結びつけ、一瞥の印象を作る
 - DEC-013では、境界の半影、fragmentごとの入射方向、height response、広い光源と同心coreの反射、glareが同じ仮想光源・遮蔽物へ追跡できることを確認する。中間光部では均一な布目や孤立glintではなく、canonical heightの微差のうち入射・粗さ条件が揃う箇所だけが狭く解像し、隣接する暗部との局所コントラストとしてdetailが読めることを確認する。数値guardrailより、desktop / mobile / scrollの各像が一瞥で実在光として読めるかを優先する。
 - DEC-014では、sensor / glareなしのruntime referenceでpixel footprint内の複数法線が同じincident radianceへ応答し、平均法線では失われる選択的な細部が連結したhighlightとして現れることを確認する。波状の面的明暗、salt-and-pepper粒子、均一な織目を解像感として数えない。compact表現はreferenceとの目視一致後にのみ採用する。
 - DEC-015では、canonical heightのcoarse slopeが微細法線へ強く再混入していないこと、band-limited facetが有限光源へ直接応答すること、detail専用mask / radiance / final RGB加算がないことを確認する。採否は係数一致ではなく、波・ぼけ・孤立白点が再発せず、暗部では沈み、中間光で解像し、白芯で飽和する視覚因果がcheckpoint 69以上に保たれるかで判断する。
+- DEC-017では、凍結中に受理する変更がshaderの光・色・材質・height mapへ及んでいないことを差分で確認する。
+  visual改善の提案は、deployableに到達するまでTODOのInboxへ積み、実装しない。
+- DEC-017では、wordmarkの低い視認性を回帰・欠陥・contrast bugとして扱わない。読めることではなく、
+  光の場を主役に保つことが検収条件である。DOM上のsemantic structureは別要件として維持する。
+- 探索期の教訓として、shader visual checkpointではbuild / test / dry-runの構造QAより先にowner実見を通す。
+  29 / 50 / 52 / 89では構造QAをPASSさせたあとに視覚レビューで棄却され、積んだ証跡がそのつど無効になった。
+  構造QAのPASSを視覚品質のPASSへ読み替えない、というDEC-008以来の原則を、実行順序としても適用する。
 
 ## Intent-derived Invariants
 
@@ -219,6 +243,7 @@ schema v1でINVとして扱っていた条件は、現行実装値を永久契�
 - DEC-008: 30秒比較、オーナー採否、First Viewから下流までの3秒 / 30秒QA。
 - DEC-009: checkpoint shader差分、3000との定量画像比較、照射面 / 背景の局所応答、禁止したscene / post-effectの不在。
 - DEC-015 / INV-034: `light.frag`のfine / coarse slope分離、local facetへのfinite-source積分、broad / core / sensorの共有radiance path、checkpoint 69との目視比較。
+- DEC-016: **現行sourceには存在しない**。2026-07-23の棄却により`light-engine.ts`のHDR scene targetと`post.frag`はrootから除去され、checkpoint 89 archiveとisolation証拠だけに残る。実装位置ではなく実験履歴として参照する。
 
 ## Rollback / Follow-ups
 

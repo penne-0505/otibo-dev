@@ -4,7 +4,7 @@ status: active
 draft_status: n/a
 intent_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-17
+updated_at: 2026-07-31
 references:
   - "_docs/plan/Site/top-page-rebuild/plan.md"
   - "_docs/qa/Site/top-page-rebuild/test-plan.md"
@@ -91,6 +91,119 @@ stylesheet 欠落も見つかったが、旧構成を修復することと新し
 - **Why**: 線による囲いを重ねると、責務の階層よりboxの反復が先に読まれ、editorialな連続性とproduct間の差が弱まるため。
 - **Change freedom**: status badgeやlink underlineなど、線自体がcomponent識別や操作性に必要な箇所では使用できる。情報階層を明確にする別の視覚手段へ変更することもできる。
 
+### DEC-011: typography roleのsizeはdesign systemへ委ね、site側の上書きを不足の暫定措置に限る
+
+- **What**: 見出し・本文のfont-size / weight / familyは`textStyle`のroleが持ち、site側のCSSでsizeを決め直さない。principle見出しは`display`、Products見出しは`heading.lg`、product名は`heading.md`、本文は`body`を使う。site側にfont-sizeの上書きを置くのは、DSのscaleに必要な段が存在しない場合と、role固定値がviewport幅に収まらないresponsiveな段下げの場合だけとし、いずれも理由と解消条件をCSSコメントへ残す。
+- **Why**: 2026-07-28時点で`display`を3箇所へ当てながら、site側が`4.4vw` / `4.0vw` / `4.2vw`という別々のclampで上書きしていた。差に意味はなくdriftであり、結果としてproduct名67.2pxがsection見出し54pxを上回る階層逆転を起こしていた。roleを当てた上でsizeを決め直すと、roleが表示契約として機能しなくなる。
+- **Change freedom**: どのroleをどの要素へ割り当てるかは、階層が保たれる限り変更できる。responsive段下げの数値、breakpoint、composition（幅・余白・grid）はsite側の責務として自由に変更できる。
+- **Why not**: 見た目を合わせるためにroleを当てたまま毎回font-sizeを書くことはしない。sizeが足りない場合は、site側で恒久的な独自scaleを作らず、design system側へ段を追加する。
+- **Revisit when**: `@otibo/ui`へ`display.sm`が入ったとき。principle見出しの暫定上書き`clamp(2xl, 4vw, 3.5rem)`を削除し、`textStyle("display.sm")`へ差し替える。2026-07-30に差し替えを実施したが、参照している`display.sm`は未publishの`dist`をnode_modulesへ手で置いた状態であり、条件は完全には満たしていない。publish完了までこの差し替えを確定扱いにしない。
+
+### DEC-012: Products領域はgalleryではなくeditorial chapter grammarで構成する（superseded by DEC-013、2026-07-31）
+
+- **Status**: superseded by DEC-013 (2026-07-31). owner判断でbentoκへ収束したため、chapter grammar
+  は working layout ではなくなった。以下の記述はβ pivot時点の判断として履歴保持する（削除しない）。
+  DEC-013 との違い、および β → κ 収束の Why は DEC-013 を参照する。
+- **What**: Products領域はproduct情報 + 横scroll screenshot galleryのtwo-pane構成ではなく、単一columnの
+  editorial chapter構成で示す。各productは status badge（chapter kicker）→ logo + name（chapter heading）
+  → description（opening paragraph）というreading orderで、余白と`textStyle` roleが密度を担う。読みやすさの
+  ためreading columnはdesktopで44rem前後（≤ 56rem）に収め、chapter間の分離は`.productList`のgap
+  （`clamp(20, 10vw, 48)`）で表現する。
+- **Why**: 掲載3productの実態が「テスト中（UI screenshot可）」「構想中（実装なし・screenshotなし）」
+  「開発中（partial）」と不均衡である。gallery two-paneはproduct毎に大きな視覚assetを前提とする骨格で、
+  assetを持たないproductが構造的に「欠けて」見え、DEC-007の「欠落を補作しない」姿勢と噛み合わない。
+  otibo-uiのgrammarはeditorialで抑制的、accentは alpha ramp主体という方向に収束しつつあり、
+  gallery-firstの視覚密度はこのgrammarと擦れる。density carrierをasset volumeからtypography rhythmへ
+  移すことで、product間の実態差を情報密度の差ではなく質感の差として並べられる。
+- **Change freedom**: 各productのdescription量、logo有無、badge文言、chapter内spacingは変更できる。
+  将来productが増えた際もchapter grammarを再利用できる。
+- **Why not**:
+  - α（galleryを維持し全productへscreenshotを供給する）: Sarae（実装なし）とStash（partial）で
+    掲載可能なasset供給の見通しがなく、DEC-007（欠落を補作しない）と両立できない。
+  - γ（Medoのscreenshotだけでgalleryを試す）: 1つだけscreenshotを持つ構成はproduct間の均衡をさらに
+    崩す。今cycleでは追加trialを行わずβへ収束する。
+- **Revisit when**: 全productに掲載可能なscreenshotが揃い、かつownerがgallery grammarをotibo-uiの
+  editorial方向へ整合させたいと明示的に判断した場合。その際はcompositionを再検討する。この決定は
+  screenshot supply自体を閉じるものではなく、supplyが整うまでの表現形式を確定させるだけである。
+
+### DEC-013: Products領域は column-featured bento grammar で構成する
+
+- **What**: Products領域を、`@otibo/ui`のCard primitiveを cell として並べる column-featured bento grid
+  で示す。左 column に Medo（tall、image dominant）を置き、右 column を上下 Sarae / Stash に分割する。
+  3枚のCard variantは同一（`surface="paper"`, `padding="md"`）で、hierarchy は Card recipe ではなく
+  grid cell size が担う。cell 間の分離は gap のみで、border / divider は導入しない（DEC-010 継承）。
+  section header は h2 のみ（`textStyle("heading.lg")`）で、eyebrow / lede / subtitle / kicker を
+  埋め草として置かない（INV-007 継承）。Medo の image slot は `.medoMedia > *` を future nested grid
+  の item として並べ替えられる single grid-container point に保ち、将来 image asset が増えた際の
+  bento-in-bento 展開を CSS restructure なしで許容する（現状は Medo 1枚のみ）。mobile ≤640px では
+  bento を単一 column へ collapse し、Medo → Sarae → Stash の順で stack する。
+- **Why**: 掲載3productの status（テスト中 / 構想中 / 開発中）と asset 供給（Medo は 1080x2400 の
+  ホーム screenshot 実在、Sarae / Stash は screenshot なし）が不均衡であるという DEC-012 と同じ
+  前提を踏まえたうえで、DEC-012 の editorial chapter は「asset を持つ Medo と、text-only の Sarae /
+  Stash を同じ chapter template に並べる」設計だった。owner の実物確認により、Medo の image を
+  presence として活かしつつ product 間の実態差を composition（cell size）で吸収する asymmetric bento
+  のほうが、chapter よりも空虚感なく densely 読めると判断された。card language は `@otibo/ui`
+  primitive のまま（surface / padding / typography role いずれも native）で、site 側は grid composition
+  のみを持つ（DEC-009 準拠）。asymmetric bento は product 間の実態差を「均一 card の欠け」ではなく
+  「cell size の差」として自然に表現でき、DEC-007（欠落を補作しない）と両立する。
+- **Change freedom**: bento grid の column 幅（現行 `minmax(0, 22rem)` / `minmax(0, 1fr)`）、gap、
+  row 分割比、mobile breakpoint、Medo image の cell 内 alignment / 幅は composition 判断として
+  変更できる。product 追加時に cell 構造を組み替えることも、column-featured から別の bento
+  arrangement へ移すことも許容する。responsive collapse の順序と閾値は content 密度と実測に応じて
+  調整できる。3枚同一 Card variant の原則（hierarchy は cell size が担う）は維持する。
+- **Why not**:
+  - α（DEC-012 継続 = editorial chapter）: Medo の実 screenshot を presence として活かせず、
+    text-only の Sarae / Stash と同じ chapter template では Medo の情報密度が抑え込まれる。
+    owner の実物比較で κ が上回った。
+  - β（compact index = product を等 grid で並べる）: card 均一化は product 間の status 差を
+    隠し、DEC-007 の「実態を率直に映す」方向と擦れる。
+  - γ（aggressive plain = 見出し + description のみ、card なし）: composition 不足で
+    section 開始点が視認されず、principle と Products の boundary が弱まる。
+  - ι（featured + secondary text = Medo だけ大きく、Sarae / Stash は文だけ）: Sarae / Stash 側に
+    filler 的 copy 追加が要求され、INV-007（copy restraint）に反する。
+  - δ（visual-forward without card language = 生 image + 生 text）: `@otibo/ui` grammar から
+    outside へ半歩踏み出す。Card primitive を持つ以上、site 固有 language を site 側で作る
+    必要はない（DEC-009 継承）。
+  - η（dark surface = bento を暗面へ載せる）: `@otibo/ui` base surface が明面 grain である今、
+    site 側で dark を導入すると grammar 境界が離れ過ぎる。将来 DS 側が暗面 grammar を採用した
+    ときに再検討する。
+- **Revisit when**: (a) product が2つ以下 / 4つ以上へ変わったとき — 現 column-featured は
+  1 tall + 2 short の3枚構成に最適化されており、product 数変化で cell 構造を再検討する。
+  (b) Medo 以外にも image asset が加わったとき — 各 cell の image 保持方針を横並びに揃えるか、
+  Medo の bento-in-bento を先に展開するか判断する。(c) `@otibo/ui` 側で bento layout primitive が
+  導入されたとき — site 側の grid CSS を DS primitive へ委譲できるか再評価する。
+
+### DEC-014: 見出し補助 copy（eyebrow / lede / subtitle / kicker / tagline）は具体的目的が示せる場合だけ使う
+
+- **What**: section header に付随する eyebrow / lede / subtitle / kicker / tagline / description prose
+  等の補助 copy は、その要素が具体的に果たす役割（例: 同姓 section を区別する signal、mobile 階層
+  逆転の代償として section 開始点を担わせる signal）を owner に説明できる場合だけ使う。埋め草として
+  「見出しだけだと寂しい」「情報を足せば伝わる」といった理由では置かない。既定は h2 のみ。
+- **Why**: 2026-07-31 の κ 統合作業で、eyebrow「作っているもの」を subagent が追加し owner が棄却
+  した経緯がある。descriptive prose を section headline の周囲に添える傾向は LLM 由来の slop signal
+  として繰り返し出現しており、site 全体で埋め草の混入経路を断つ必要がある。装飾的補助 copy は brand
+  voice に「余計な語りを添える人格」を混ぜ、INV-002（個人ブランドとして書かれる、複数人 team を装う
+  語り口を含まない）を溶かす方向へ働く。principle と Products の hierarchy を owner copy と
+  composition で成立させた現状に対し、補助 copy の重量は overshoot になる。
+- **Change freedom**: 個別 section で補助 copy に具体的目的が生じた場合（例: mobile 階層逆転で
+  h2 のサイズを下げ、section 開始点の signal を担う eyebrow が必要になった場合）は、その目的を
+  intent / verification に記して採用できる。Contact section の eyebrow role h2 のように既存の
+  意図的採用は本 DEC で棄却しない。
+- **Why not**: 「読みやすさが上がるだろう」「情報密度が上がるだろう」という一般的な期待だけを
+  根拠に補助 copy を置かない。owner の brand voice 判断は generative default より上位である。
+
+## Grammar principles
+
+### GP-001: copy restraint（DEC-014 の運用）
+
+- section headline は h2 のみを既定とする。eyebrow / lede / subtitle / kicker / tagline / descriptive
+  prose を追加する場合は、それが果たす具体的な signal を DEC / verification に説明できることを条件と
+  する（DEC-014）。
+- product name / description / status は owner 確認済みの正本（`Site-Feat-17` Publication Gate）から
+  変更しない。paraphrase / 補足文言の生成禁止。
+- 埋め草判定: 「見出しだけだと寂しい」「情報を足したほうが伝わる」「LLM 生成の descriptive prose
+  で自然に埋まる」は具体的目的ではない。棄却する。
+
 ## Consequences / Impact
 
 - 作業途中の`/`はproduction deploy対象にならず、公開前にpage全体の判定が必要になる。
@@ -114,12 +227,23 @@ stylesheet 欠落も見つかったが、旧構成を修復することと新し
 - INV-008 (from DEC-008): 法務route、static export、Workers Static Assetsを維持する。
 - INV-009 (from DEC-007): product紹介は公開可能なname、owner確認済みdescription、確認時点に即したstatusを必須情報とする。
 - INV-010 (from DEC-007): productのlogo、UI / image、外部linkは実在する場合だけ使い、欠落を補うために捏造しない。
+- INV-011 (from DEC-014): 見出し補助 copy（eyebrow / lede / subtitle / kicker / tagline / descriptive prose）は
+  具体的目的が示せる場合だけ使い、埋め草として置かない。
 
 ## Enforced in (optional)
 
 - INV-009: `app/_components/top-page/TopPageContent.tsx`
 - DEC-003: `_docs/intent/Site/first-view-light-shader/decision.md`
 - DEC-009: `app/_components/top-page/TopPageContent.tsx`
+- DEC-011: `app/_components/top-page/TopPageContent.tsx`の`textStyle`割り当てと、`app/_components/top-page/top-page.module.css`のmobile段下げ上書き（解消条件をコメントで明示）。desktopの`.principle h2`暫定上書きは2026-07-30に`textStyle("display.sm")`へ移して削除済み。
+- DEC-012: superseded by DEC-013 (2026-07-31). 実装は既に bento κ へ収束したため、 chapter grammar
+  としての enforcement は無効化された。判断履歴のみ decision.md に保持。
+- DEC-013: `app/_components/top-page/TopPageContent.tsx`（`.productsBento` / `.medoCard` / `.saraeCard` /
+  `.stashCard` の bento composition と、Medo の `MediaFrameImage` 実 asset 参照）と、
+  `app/_components/top-page/top-page.module.css`（`.productsBento` grid 定義、`.medoMedia` の
+  future bento-in-bento 用 single grid-container point、mobile collapse）。
+- DEC-014 / INV-011: `app/_components/top-page/TopPageContent.tsx` の Products section header（h2 のみ、
+  eyebrow / subtitle 非搭載）と、DEC-013 / GP-001 の運用。
 
 ## Rollback / Follow-ups
 

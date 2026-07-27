@@ -31,18 +31,12 @@
 
 .principle h2 {
   width: 100%;
-  font-size: clamp(var(--font-sizes-2xl), 4.4vw, var(--font-sizes-4xl));
-  font-weight: 500;
   white-space: nowrap;
   text-align: center;
 }
 
 .mobileBreak {
   display: none;
-}
-
-.principle p {
-  font-size: clamp(var(--font-sizes-base), 1.45vw, var(--font-sizes-md));
 }
 
 .products {
@@ -64,101 +58,71 @@
   padding-bottom: clamp(var(--spacing-12), 6vw, var(--spacing-20));
 }
 
-.sectionHeading h2,
-.sectionHeading p {
+.sectionHeading h2 {
   margin: 0;
 }
 
-.sectionHeading h2 {
-  font-size: clamp(var(--font-sizes-2xl), 4vw, var(--font-sizes-3xl));
-  font-weight: 500;
-}
-
-.sectionHeading p {
-  line-height: inherit;
-}
-
-.productList {
+/* intent: DEC-013 (Site/top-page-rebuild/products-bento) —
+ * column-featured bento:
+ *   +-----------+-----------------------+
+ *   |           |        Sarae          |
+ *   |   Medo    +-----------------------+
+ *   |           |        Stash          |
+ *   +-----------+-----------------------+
+ * hierarchy は cell size が担い、card variant（surface="paper" / padding="md"）は同一。
+ * separation は gap のみ。border / divider は導入しない（DEC-010）。 */
+.productsBento {
   display: grid;
-  gap: clamp(var(--spacing-20), 10vw, calc(var(--spacing-24) * 2));
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  grid-template-rows: 1fr 1fr;
+  gap: var(--spacing-6);
 }
 
-.product {
-  display: grid;
-  grid-template-columns: minmax(15rem, 0.72fr) minmax(0, 1.28fr);
-  gap: clamp(var(--spacing-10), 7vw, var(--spacing-24));
-  padding: 0;
+.bentoCard {
+  /* Card を grid cell 全面へ張り、bento を「並んだ面」として読ませる。 */
+  height: 100%;
+  min-width: 0;
 }
 
-.productCopy {
-  align-self: start;
+.medoCard {
+  grid-column: 1;
+  grid-row: 1 / span 2;
 }
 
-.product[data-has-media="false"] {
-  grid-template-columns: minmax(0, 1fr);
+.saraeCard {
+  grid-column: 2;
+  grid-row: 1;
 }
 
-.product[data-has-media="false"] .productCopy {
-  width: min(100%, 42rem);
+.stashCard {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .status {
+  /* Card slot 内で Badge の inline-flex を保持し、track 幅への stretch を回避する。 */
+  align-self: start;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
-  margin-bottom: var(--spacing-6);
 }
 
-.identity {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-}
-
-.identity h3 {
-  margin: 0;
-  font-size: clamp(var(--font-sizes-2xl), 4.2vw, var(--font-sizes-4xl));
-  font-weight: 500;
-}
-
-.productCopy > p {
-  max-width: 32ch;
-  margin: var(--spacing-6) 0 0;
-  font-size: clamp(var(--font-sizes-base), 1.5vw, var(--font-sizes-md));
-}
-
-.productMedia {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.mediaViewport {
-  width: 100%;
-  height: 100%;
-}
-
-.mediaTrack {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
-  gap: clamp(var(--spacing-4), 2vw, var(--spacing-6));
-  width: 100%;
-  min-width: 0;
-}
-
-.mediaTrack[data-count="1"] {
-  grid-template-columns: minmax(0, calc((100% - var(--spacing-6)) / 2));
-}
-
-.mediaItem {
-  display: grid;
-  margin: 0;
-  grid-template-rows: minmax(0, 1fr);
-}
-
-.mediaFrame {
-  aspect-ratio: 9 / 16;
+/* intent: DEC-013 (Site/top-page-rebuild/products-bento) —
+ * Medo image wrapper. 現状は1枚だが、`.medoMedia > *` を将来 nested grid の item として
+ * 並べ替えるだけで bento-in-bento へ育てられるよう、single grid-container point に保つ。
+ * MediaFrameRoot は aspect="auto" / fit="contain" で phone portrait 比率を保つ。
+ * flex 縦方向で下端寄せし、header 上・screenshot 下の重心配置にする。 */
+.medoMedia {
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.medoMedia > * {
+  /* ~22rem の Medo cell 内で phone mock が両隣を圧迫しない comfortable な幅に収める。 */
+  width: min(11rem, 100%);
 }
 
 .contact {
@@ -217,9 +181,11 @@
     gap: var(--spacing-8);
   }
 
+  /* mobile だけは display.sm (3.5rem) が 390px 幅に収まらないため、responsive な段下げとして
+     site 側で font-size を持つ。desktop は role をそのまま使う。
+     この段下げにより 390px では Products 見出しとの階層が逆転する（未解決、owner 判断待ち）。 */
   .principle h2 {
     font-size: clamp(var(--font-sizes-xl), 8vw, var(--font-sizes-2xl));
-    white-space: normal;
   }
 
   .mobileBreak {
@@ -228,7 +194,6 @@
 
   .principle p {
     font-size: var(--font-sizes-sm);
-    line-height: var(--line-heights-relaxed);
   }
 
   .products {
@@ -243,47 +208,38 @@
     padding-bottom: var(--spacing-12);
   }
 
+  /* `.principle h2`のmobile clampは`clamp(xl, 8vw, 2xl)`で、375〜425px viewportでは
+     8vw < xl (=31.5px)のため下限側の`xl`が採用される（例: 375pxで31.5px）。
+     ここを放置すると`heading.lg`(= 2xl = 40.5px)のProducts見出しが principle を上回り階層が逆転する。
+     principleの mobile 実効値と同じ`xl`まで下げてprinciple >= Productsを維持する。
+     bento cards 内の CardTitle (h3, `heading.md` = xl = 31.5px) と section h2 が同サイズへ並ぶが、
+     h2 / h3 は書体・意味論では区別され、section 開始点は grid composition と surface 差で成立する。 */
   .sectionHeading h2 {
     grid-row: 1;
+    font-size: var(--font-sizes-xl);
   }
 
-  .product {
+  /* intent: DEC-013 (Site/top-page-rebuild/products-bento) —
+   * mobile では bento を単一 column へ collapse し、Medo → Sarae → Stash の順で stack。
+   * 各 card は content 高さで自然に伸ばす（`height: auto`）。 */
+  .productsBento {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--spacing-8);
-    padding: 0;
+    grid-template-rows: auto;
+    row-gap: var(--spacing-4);
   }
 
-  .identity h3 {
-    font-size: var(--font-sizes-2xl);
+  .bentoCard,
+  .medoCard,
+  .saraeCard,
+  .stashCard {
+    grid-column: auto;
+    grid-row: auto;
+    height: auto;
   }
 
-  .productCopy > p {
-    max-width: none;
-  }
-
-  .mediaTrack {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(
-      calc(var(--sizes-20) + var(--sizes-24) + var(--sizes-10)),
-      82%
-    );
-    width: max-content;
-    min-width: 100%;
-    justify-content: start;
-  }
-
-  .mediaTrack[data-count="1"] {
-    grid-template-columns: none;
-  }
-
-  .mediaViewport {
-    overscroll-behavior-inline: contain;
-    scroll-snap-type: inline proximity;
-  }
-
-  .mediaItem {
-    scroll-snap-align: start;
+  .medoMedia > * {
+    /* mobile は card 全幅。phone mock を少し大きく取っても header を圧迫しない。 */
+    width: min(12rem, 60vw);
   }
 
   .contact {
@@ -301,11 +257,5 @@
 
   .footer nav {
     justify-content: flex-start;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .productMedia {
-    scroll-behavior: auto;
   }
 }

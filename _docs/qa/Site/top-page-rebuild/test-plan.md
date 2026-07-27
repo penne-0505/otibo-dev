@@ -6,7 +6,7 @@ qa_status: in-progress
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-17
+updated_at: 2026-07-28
 references:
   - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/plan/Site/top-page-rebuild/plan.md"
@@ -62,6 +62,7 @@ product情報を公開可能な完成状態と混同しない。
 - DEC-008: legal route、static export、asset-only deploymentを維持しているか確認する。
 - DEC-009: design-system primitiveの外観をsite側で重複定義せず、compositionだけを所有しているか確認する。
 - DEC-010: section / product境界が線の反復に依存せず、例外の線にcomponent上の意味があるか確認する。
+- DEC-011: 見出し・本文のsizeが`textStyle` roleから来ており、site側のfont-size上書きがDSのscale不足とresponsive段下げの2例外に限られ、いずれも解消条件がコメントで追跡できるか確認する。階層（principle > section見出し > product名 > 本文）が実測で保たれているかを併せて確認する。
 
 ## Intent-derived Invariants
 
@@ -110,6 +111,7 @@ product情報を公開可能な完成状態と混同しない。
 | INV-008 | intent | legal / asset-only deployment | Build + HTTP smoke | route list / dry-run | 必要routeとdeployment契約を維持する | planned |
 | INV-009 | intent | product必須情報 | Content review | product source inventory | name / description / statusが確認済み | planned |
 | INV-010 | intent | optional material authenticity | Content + Diff review | asset / link inventory | 実在asset / linkだけを使用する | planned |
+| DEC-011 | intent | typography roleのsize委譲と暫定上書きの限定 | Static + Browser + Quantitative | `TopPageContent.tsx`の`textStyle`割り当て、`top-page.module.css`のfont-size出現箇所、1600x900 / 390x844のcomputed font-size | site側のfont-size上書きがmobile段下げだけになり、CSSコメントに解消条件を持つ。desktopのDS不足分上書きは`display.sm`採用で解消済み。desktop実測でprinciple 63px > Products 40.5px > product名 31.5px > 本文 20.25pxの階層が成立する | covered |
 
 ## Manual QA Checklist
 

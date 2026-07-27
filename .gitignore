@@ -31,3 +31,6 @@ coverage/
 *.tsbuildinfo
 prototypes/
 tmp/
+
+# Playwright CLI dumps (transient debug output)
+.playwright-cli/

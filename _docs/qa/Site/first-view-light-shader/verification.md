@@ -6,7 +6,7 @@ qa_status: partial
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-22
+updated_at: 2026-07-28
 references:
   - "_docs/qa/Site/first-view-light-shader/test-plan.md"
   - "_docs/intent/Site/first-view-light-shader/decision.md"
@@ -1539,6 +1539,93 @@ scrollの各像を見たときの物理的整合を優先する。現時点のAC
 - **DEC-011 / DEC-012 / DEC-013: PARTIAL.** receiver-space emitter luminance fieldとbroad height slopeを除去し、Layeredの寒色背景、暖色照射、白芯、sensorをdesktop初期像へ復帰した。responsive / scroll / exit washの新shader目視が残る。
 - **Scoped verdict: PARTIAL — checkpoint 57 is a desktop review candidate, not an adopted final.** AC-038 / AC-039、TODO step 30 / 31は閉じない。残項目はmemory回復後のmobile / scroll / settled QA、source sample convergence、owner採否である。
 
+## 2026-07-23 checkpoint 89 HDR capture and directed reflection candidate
+
+### Implementation and comparison result
+
+- checkpoint 69後のcomponent診断で、body-onlyは均一な壁紙、specular-onlyは孤立白点、final sensorはその空間分布を主因として潰していないと確認した。body帯域、等方roughness、光源径、meso mean-normal、局所roughness統計を操作したcheckpoint 70〜77は、反射像を連結せず平滑化か白粒化へ戻ったため採用しない。
+- `light-engine.ts`へRGBA16F scene targetを追加し、`light.frag`はlinear scene radianceをRGB、specular luminanceをalphaへ格納する。`post.frag`はspecular成分だけを近距離のenergy-preserving PSFと高輝度域の低energy glareへ通してから、既存のscroll exposure / sensor responseを適用する。diffuse / ambientは空間filterへ通さない。
+- `EXT_color_buffer_float`、texture寸法、framebuffer completenessのいずれかを満たさない場合はsingle-pass sensor経路へfallbackする。追加framebuffer / texture / programは通常disposeで明示解放し、context loss時は既存契約どおりcontextによるresource破棄後に再構築する。shader textだけ`no-store`で取得し、17MBのheight map cacheは維持する。
+- checkpoint 78 / 79はPSF差がdesktop RMSE約0.33%に留まり、鏡面energy不足を解消しなかった。80はbody diffuseのfine responseを中程度に抑え、鏡面energyを増やしたが、反射は1〜2pxの白点のままだった。85の4-facet footprint積分は白点を平滑化しただけで反射patchを作らず、87の鏡面energy探索端は白粒密度だけを増やしたため不採用とした。
+- checkpoint 88はspecularの平均方向を約5pxのcoarse slopeへ移し、fine slopeを局所偏差として残した。初めて白粒ではなく連結した反射面が現れたが、金属箔 / 荒れた水面への素材同定が強かった。89ではcoarse / fine寄与と鏡面energyを一段戻し、反射の連結性を残しながら大きな皺の主張を抑えた。現行rootはcheckpoint 89である。
+
+### Browser evidence
+
+- Codex in-app Browserでdesktop `1600x900`の初期像とscroll progress `0.487 / 0.856`、mobile `390x844`の初期像を実見した。全位置でcanvas status `ready`、render path `radiance-post`、横overflow `0`、page由来console error / warningなしだった。
+- desktop drawing bufferは`1585x900`、HDR targetは`11,412,000` bytes。mobileは`375x844`、`2,532,000` bytesだった。height textureの18MiB契約は変更していない。
+- desktop初期像は寒色背景、斜めのcream / 暖白、局所白芯を維持し、中間光に方向整合した細かな反射面が増えた。scroll中間でもmacro構図と色階層は連続し、mobileでは主軸とwordmarkが切れず横overflowも生じなかった。一方、mobileはdesktopより反射粒径が大きく、素材同定が前へ出る残リスクがある。
+- mobile進捗0で550ms離した二captureはSHA-256 `1ec1b986db100c94c587e54bd44279339cad0b96462d8956e5776a42695cc1e9`でbyte一致し、render countは`2`のまま変化しなかった。
+- checkpoint source / captureは`/home/penne/dev/scratch/temp/otibo-first-view-radiance-post-20260723/`へ保存した。89は`checkpoint-89-balanced-directed-reflection`、強い探索端88は`checkpoint-88-coarse-directed-reflection`である。追加serverは一つだけ使用した。
+
+### Decision conformance and verdict
+
+- **DEC-016: PASS for implementation structure.** scene / specular packing、specular-only PSF、sensor順序、single-pass fallback、resource lifecycleを実装した。撮像passはheight、beam、diffuse bodyから新しい模様を生成しない。
+- **DEC-015 / INV-034: PARTIAL.** coarse slopeをdiffuse bodyへ戻しておらず、fine slopeとfinite-source responseは残る。一方、checkpoint 89はspecularの平均方向にcoarse slopeをfineより強く使うため、現行INV-034の「direct normalへ戻さない」という文言を厳密には満たさない。広い波ではなく局所反射面として読める内部判断は得たが、owner採否前にinvariantを改訂しない。
+- **AC-040: PARTIAL.** HDR capture、fallback、desktop / mobile / scroll、決定性は確認済み。owner reviewではcheckpoint 89を未採用としたため、checkpoint 69以上の視覚品質とmaterial-neutralな反射は達成していない。
+- **Scoped verdict: REJECTED VISUALLY / PARTIAL STRUCTURALLY.** checkpoint 89の二段撮像構造とlifecycle検証は証拠として残すが、視覚baselineには採用しない。TODO step 30 / 32は閉じず、69から89のどの変更が知覚上の回帰を支配したかも未確定とする。
+
+### Commands run
+
+- PASS: `npm test` — 4 files / 41 tests。
+- PASS: `npm run typecheck`。
+- PASS: `npx biome check app/_components/first-view/light-engine.ts app/_components/first-view/light-engine.test.ts app/_components/first-view/light-policy.ts app/_components/first-view/light-policy.test.ts`。
+- PASS: `glslangValidator -S frag public/first-view/light.frag`。
+- PASS: `glslangValidator -S frag public/first-view/post.frag`。
+- PASS: `npm run build` — canonical height current、static 9 routes。
+- PASS: `npm run deploy:dry-run` — `out`の496 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh`、`git diff --check`。
+
+### Owner rejection and archive
+
+- 2026-07-23、checkpoint 89をport 3000へ公開した後、オーナーは「よかったところが台無し」と評価し、
+  未採用として保存するよう判断した。これは係数調整の要請やcheckpoint 69への即時差し戻しではなく、
+  失敗原因を分析するためのvisual rejectionである。
+- 未採用archive:
+  `/home/penne/dev/scratch/temp/otibo-first-view-radiance-post-20260723/checkpoint-89-balanced-directed-reflection`
+- archiveの`STATUS.md`、rendered evidence、repository snapshotを原因分析の証拠とする。
+- checkpoint 69は最後のowner direction acceptanceであり、89との比較基準として残る。69も最終完成ではない。
+
+## 2026-07-23 failure isolation and restore to checkpoint 69
+
+### Isolation variants
+
+同一の現行engine bundle上で、`light.frag` / `post.frag`だけを差し替えた3系をdesktop `1600x900`で比較した。
+
+| Port | Variant | Normals / specular energy | Capture |
+|------|---------|---------------------------|---------|
+| 3010 | A | checkpoint 69 / 78 (`micro*1.04 + coarse*0.14`, energy `0.26`) | sensor-only（空間PSFなし） |
+| 3011 | B | Aと同じ | checkpoint 89 `post.frag` PSF |
+| 3012 | C | checkpoint 89 (`micro*0.26 + coarse*0.56`, energy `0.90`) | sensor-only |
+
+証拠:
+`/home/penne/dev/scratch/temp/otibo-first-view-failure-isolation-20260723/`（`NOTES.md`、`captures/`）。
+
+### Measured deltas (RGB RMSE, 0–255)
+
+- A vs B: full **0.31** / mid **0.41** — 69係数上のPSFはほぼ不可視。
+- A vs C: full **10.97** / mid **15.83** — 支配的な変化軸。
+- C vs 89 full: full **2.36** / mid **3.63** — 89 ≒ C + 弱いPSF。
+- A vs 3007 diagnostic 69: full **0.08** — Aは69再現として妥当。
+- Owner実見も同順: B→Cが決定的、A→Bはほぼ感じ取れず、C→89は変化はあるが印象は変わらない。
+
+### Causal conclusion
+
+- 「よかったところ」（69の解像感 / 実在光の圧倒）を壊した主因は、specular平均方向へのcoarse slope戻しと鏡面energy増（directed reflection）である。
+- specular-only PSF単体は69上でほぼ効かず、失敗の主因ではない。
+- DEC-016のRevisit条件（69より高解像感が低下、またはPSFだけでは連結反射へ変わらない）に該当したため、撮像passを基準へ採用しない。
+
+### Restore
+
+- 2026-07-23、owner確認のうえ作業基準を **A（checkpoint 69 / PSFなし）** へ戻した。Bではない。
+- `public/first-view/light.frag`、`light-engine.ts`、関連test / policyをHEAD（`5a78491` band-separated）へ復帰。
+- 未追跡の`post.frag`は削除せず isolation archiveの`rejected-artifacts/`へ移送。
+- `npm run build`後、port 3000のdesktop captureと isolation AのRMSEは **0.081**。
+- PASS: `glslangValidator -S frag public/first-view/light.frag`、targeted `npm test` 4 files / 38 tests。
+- **DEC-015 / AC-039: 作業基準へ復帰。** 完成判定ではない。
+- **DEC-016 / AC-040: REJECTED AS BASELINE.** 構造実験の証拠は残すが、現行sourceへ戻さない。
+- **AC-038 / step 30: IN PROGRESS.** 失敗原因の特定は完了。完成採否は残る。
+- **Scoped verdict: PARTIAL — baseline restored to checkpoint 69 after rejecting the 89 path.**
+
 ## 2026-07-22 checkpoint 52 owner rejection and local-NDF reframing
 
 ### Owner evidence and diagnosis
@@ -1669,3 +1756,79 @@ scrollの各像を見たときの物理的整合を優先する。現時点のAC
 - PASS: final `npm run build` — canonical height map current、static 9 routes生成。
 - PASS: final `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
 - PASS: `./scripts/check-docs.sh`、targeted `git diff --check`。
+
+## 2026-07-28 AC-040 status reclassification (`Site-Chore-23`)
+
+docs-driven template v1.2.0でTest Matrix statusのenumが厳格化され、AC-040の`rejected`が非canonicalとして
+`./scripts/check-docs.sh`で検出されていた。棄却判断そのものは変えず、statusだけを再分類した。
+
+### Reclassification and rationale
+
+- AC-040のstatusを`rejected`から**`not-applicable`**へ変更した。
+- `deferred`を採らない理由: AC-040の検証は完了している（isolation A/B/CとRMSE計測、owner実見）。
+  未実施・保留を意味する`deferred`は事実と異なる。DEC-016の棄却により、AC-040が現行baselineの
+  受入基準ではなくなったという状態が`not-applicable`に対応する。
+- `covered` / `verified`を採らない理由: いずれも現行baselineに対する有効な受入基準であることを含意する。
+- 棄却理由と証拠はStatus欄の外に保持した。test-plan §Acceptance CriteriaのAC-040本文、Test Matrixの
+  Requirement / Expected Evidence欄、DEC-016 `Revisit outcome (2026-07-23)`、本ファイルの
+  §2026-07-23 failure isolationが該当する。
+
+### Stale reference correction
+
+- `decision.md` §Enforced inのDEC-016行は`light-engine.ts`のHDR scene targetと`post.frag`を実装位置として
+  挙げていたが、2026-07-23の復帰でrootから除去済みである。`public/first-view/`には`light.frag`と
+  `light-height-map.png`のみが存在し、`app/` / `public/`に`post.frag` / `RGBA16F` / `HALF_FLOAT`の参照はない。
+  実装位置ではなくarchiveのみに残る実験履歴である旨へ修正した。
+
+### Closure checks
+
+- PASS: `./scripts/check-docs.sh` — exit 0。変更前は
+  `Test Matrix status must be one of planned, covered, verified, deferred, not-applicable`で失敗していた。
+- shader source、asset、engine、policyは不変。First Viewのruntime挙動へ影響しない。
+- **Scoped verdict: PASS — `Site-Chore-23` closed. AC-038 / step 30の未了状態は変わらない。**
+
+## 2026-07-28 checkpoint 69 provisional acceptance and shader freeze (DEC-017)
+
+### Owner acceptance
+
+オーナーがdesktop 1600x900の初期像（progress 0）を実見し、production可能な水準として受理した。
+2026-07-22のcheckpoint 50レビュー（白飛びなし / のっぺり / 白粒がノイズ / 低contrast）はcheckpoint 50に
+対するものであり、checkpoint 69へ同じ4項目が引き継がれていないことをこの受理で確定する。
+
+受理された像の読み:
+
+- 影がtealへ沈み直射が暖色へ転ぶ色温度差により、影を単に暗くした像ではなく実在光として読める。
+- 上端の遮蔽エッジが不規則な輪郭を持ち、直線的なCG境界になっていない。
+- 織り目が光帯の内側だけで解像し、暗部では沈む。DEC-015が狙った選択的解像がdesktopで成立している。
+
+### Frozen artifacts
+
+| Artifact | SHA-256 |
+|----------|---------|
+| `public/first-view/light.frag` | `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` |
+| `public/first-view/light-height-map.png` | `48d0637db927bbf1da36db2f80e8a07ec33358fb1344a077a4384797d79b6f5e` |
+
+### Intentional non-achievement
+
+- **AC-038（飽和白芯）: DEFERRED.** 最も明るい領域はcream止まりで、sensor飽和による白芯は成立していない。
+  未達であることを認めたうえで、DEC-017により凍結期間中は再探索しない。放棄ではなく順序の後送りである。
+- **AC-040: NOT-APPLICABLE.** DEC-016経路は棄却済み。
+- **`otibo`の低い視認性: 意図であり欠陥ではない。** オーナーは「文字は一つも載せたくないくらい」
+  「見えないくらいがいい」と明示した。可読性向上をcontrast修正として実施しない。
+  agentが将来これをbugとして「修正」しないための記録である。DOM上のsemantic structureは別要件として維持する。
+
+### Residual gaps
+
+- mobile 390x844の構図、scroll中間 / exit washの目視は、今回のdesktop受理では取得していない。
+  `Site-Feat-17` step 5 / 6のresponsive QAで併せて確認する。
+- Browser paneが表示されずagent側からの描画取得ができなかったため、定量captureは未取得である。
+  受理はowner実見に基づく。
+- AC-039は`covered`のまま。desktopの視覚因果は成立したが、mobile目視が残る。
+
+### Closure checks
+
+- PASS: `./scripts/check-docs.sh` — exit 0。
+- shader source、height map、engine、policyは今回のセッションで変更していない。docsのみの変更である。
+- **Scoped verdict: PARTIAL — checkpoint 69 accepted as the production provisional baseline and frozen.**
+  AC-038は意図的にdeferred、mobile目視は下流QAへ送るため、全体verdictはPARTIALのままとする。
+

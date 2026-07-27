@@ -1,9 +1,9 @@
 ---
-title: "Draft: First View light shader agent handoff 2026-07-22"
+title: "Draft: First View light shader agent handoff 2026-07-23"
 status: proposed
 draft_status: paused
 created_at: 2026-07-22
-updated_at: 2026-07-22
+updated_at: 2026-07-28
 references:
   - "_docs/draft/Site/otibo-light-shader-handoff/notes.md"
   - "_docs/plan/Site/first-view-light-shader/plan.md"
@@ -17,7 +17,7 @@ related_prs: []
 ---
 
 <!-- Canonical path: _docs/draft/Site/first-view-light-shader-agent-handoff/notes.md -->
-<!-- 2026-07-22時点の会話・実装・視覚評価を共有するpaused snapshot。作業指示や実装計画ではない。 -->
+<!-- 2026-07-23時点の会話・実装・視覚評価を共有するpaused snapshot。作業指示や実装計画ではない。 -->
 
 ## Document Boundary
 
@@ -27,7 +27,106 @@ related_prs: []
 実装手順、推奨する変更、作業順序、完了までの指示は含めていない。正式な要件と判断理由は、
 front-matterで参照しているPlan / Intent / QAをsource of truthとする。
 
-## Snapshot Summary
+## Current Owner Verdict — 2026-07-28（最新）
+
+この節が本資料で最も新しい。以下のすべての節に優先する。
+
+- **2026-07-28、オーナーがcheckpoint 69をproduction暫定baselineとして受理し、shader探索を凍結した。**
+  判断はDEC-017、証拠は`verification.md`の§2026-07-28に記録されている。
+- 凍結対象はshaderの光・色・材質・height map。新規checkpointを作らない。
+- AC-038の飽和白芯は**未達のままdeferred**。放棄ではなく、siteがdeployableになるまで順序を後送りする。
+- `otibo`の低い視認性は**意図**である。オーナーは「見えないくらいがいい」と明示した。contrast bugとして修正しない。
+- 次の作業は`Site-Feat-17` step 3 / 5 / 6 / 7、すなわちcontent充足、responsive / semantic / keyboard、
+  build / deploy QA。**shaderへは戻らない。**
+- 凍結解除は`Site-Enhance-24`とDEC-017の`Revisit when`に従う。
+
+本資料の以降の節は、この凍結に至るまでの経緯である。現在の作業指示ではない。
+
+## Owner Verdict — 2026-07-23
+
+この節は、以下に残るcheckpoint 50時点の履歴snapshotより新しく、当時の状態の解釈を上書きした。
+
+- checkpoint 89はオーナーにより**未採用**と明示された。完成候補、baseline、次の採用方向として扱わない。
+- 失敗隔離の結果、主因は specular-only PSF ではなく、specular 平均方向への coarse slope 戻し（directed reflection）である。
+- オーナー実見でも A→B（PSF）はほぼ感じ取れず、B→C（coarse-directed）が決定的、C→89は印象を変えない二次変化だった。
+- 2026-07-23、作業基準は **A（checkpoint 69 / PSFなし）** へ戻した。B（69+PSF）ではない。
+- 現行rootとport 3000は checkpoint 69 / HEAD `5a78491` 相当である。完成ではない。
+- TODO step 30 / AC-038 / AC-039 は未完了のまま。step 32 / AC-040 / DEC-016 は baseline として棄却済み。
+
+checkpoint 89の未採用archive:
+
+`/home/penne/dev/scratch/temp/otibo-first-view-radiance-post-20260723/checkpoint-89-balanced-directed-reflection`
+
+失敗隔離の証拠:
+
+`/home/penne/dev/scratch/temp/otibo-first-view-failure-isolation-20260723/`
+
+## Current Source Priority
+
+現状ファイルだけから再開する場合、解釈の優先順位は次のとおりである。
+
+1. 本資料冒頭の2026-07-28 owner verdict（凍結）。
+2. `_docs/intent/Site/first-view-light-shader/decision.md`のDEC-017。
+3. `_docs/qa/Site/first-view-light-shader/verification.md`の§2026-07-28、および§2026-07-23。
+4. `TODO.md`の`Site-Feat-17` AC-041 / step 30、および`Site-Enhance-24`。
+5. DEC-013〜DEC-016とAC-038〜AC-040。凍結解除まで作業指示として読まない。
+6. 本資料のcheckpoint 50以前の履歴と旧handoff。これらは経緯であり、現在候補の採用状態を示さない。
+
+## Goal and Evaluation Boundary at the Rejection Point
+
+目標は、Layeredの構図と色を残すことと、局所的にリアルなmaterial responseを足すことの平均点ではない。
+次の二つが同時に成立したFirst Viewである。
+
+- Layered由来の斜め構図、寒色背景、creamから暖色、意図的な飽和白芯へ進む色と輝度の階層を保つ。
+- canonical heightの微細構造が光源方向、half-vector、roughness、遮蔽と整合した箇所だけで選択的に解像し、
+  一瞥で「面へ色を塗った」のではなく「静止面へ実際の光が当たった」と読める。
+
+「微細さゆえの圧巻さ」は、波、皺、織り、粒を新しい模様として前景化することではない。
+微細なfacetが局所的な輝度差、暗い谷、有限の反射像として解像し、情報密度と焦点階層を生むことを指す。
+白飛びは避ける対象ではなく、輝度がsensorの記録域を越えた先を知覚させるための意図的な終点である。
+
+## Checkpoint 69 to 89 Change Boundary
+
+### Checkpoint 69: direction accepted, not final
+
+- canonical heightのfine / coarse slopeを分離し、coarseの大部分を差し引いたmicro slopeを有限面光源へ直接応答させた。
+- covariance lobeや平均法線へ局所facetを潰さず、暗部では沈み、中間光で解像し、白芯で飽和する同じ経路を保った。
+- 波、ぼけ、白点noiseを避けながら、Layeredのmacro構図と寒暖階層を残した点が方向性承認の対象だった。
+- archive:
+  `/home/penne/dev/scratch/temp/otibo-first-view-local-ndf-20260722/checkpoint-69-bandpassed-layered-radiance`
+
+### Checkpoints 70–87: attempted diagnosis and rejected branches
+
+- body-onlyは均一な壁紙、specular-onlyは孤立白点として読まれることをcomponent診断で確認した。
+- body帯域、roughness、光源径、meso mean-normal、局所roughness統計の変更は、反射像を連結せず、
+  平滑化または白粒化へ戻った。
+- RGBA16F scene targetと`post.frag`を導入し、specularだけへ小半径PSFと高輝度glareを適用した。
+- PSFだけでは鏡面energyと空間分布の不足を補えず、4-facet footprint積分も白点を平滑化しただけだった。
+
+### Checkpoints 88–89: directed reflection and owner rejection
+
+- 88はspecular平均方向へ約5pxのcoarse slopeを強く戻し、fine slopeを局所偏差として残した。
+  白点ではなく連結した反射面が現れた一方、金属箔または荒れた水面としての素材同定が強くなった。
+- 89はcoarse / fine寄与と鏡面energyを88から弱め、反射の連結性を残しながら大きな皺の主張を抑えた。
+- 89の実装構造、fallback、resource lifecycle、desktop / mobile / scroll、決定性は検証を通過した。
+- しかしowner visual reviewでは未採用となった。構造QAのPASSを視覚品質のPASSへ読み替えない。
+
+## Failure Analysis Boundary
+
+確認済みの事実:
+
+- 69が方向性承認点であり、89が未採用点であること。
+- 隔離比較（A=69、B=69+PSF、C=coarse-directed）により、主因は coarse-directed specular であり、PSF単体ではないこと。
+- 2026-07-23に作業基準を A（69 / PSFなし）へ戻したこと。
+
+棄却済みの仮説（主因としては採らない）:
+
+- specular-only PSFが69の局所contrastを主に平均化した、という単独因果。
+- HDR撮像passの存在自体が失敗を支配した、という単独因果。
+
+残る未決は、69基準での完成採否と、孤立白点を69の解像感を壊さずにどう扱うかである。
+
+## Historical Snapshot Summary — checkpoint 50
 
 - 対象はトップページFirst ViewのWebGL fragment shaderである。
 - 視覚上の中心価値は、Layered由来の斜め構図、寒色背景、creamから暖白と飽和白芯へ進む階層である。
@@ -35,9 +134,8 @@ front-matterで参照しているPlan / Intent / QAをsource of truthとする�
   Layeredより圧倒的に精密だった。
 - 長期目標は、この二つを同居させ、一瞥で「色を塗った面」ではなく「静止面へ実際の光が当たった光景」
   と読める状態である。
-- 現行sourceはcheckpoint 50相当だが、オーナーの最新レビューでは完成候補として不採用である。
-- TODOのAC-038とstep 30は未完了、QA verdictは`PARTIAL`のままである。
-- 最新レビュー後、shader sourceへの追加変更はない。
+- この節以降の「現行」は2026-07-22のcheckpoint 50時点を指す。現在状態には適用しない。
+- checkpoint 50もオーナーのレビューで完成候補として不採用となった。
 
 ## Aesthetic Contract Recovered from Conversation
 

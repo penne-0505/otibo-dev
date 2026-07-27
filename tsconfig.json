@@ -30,5 +30,10 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "styled-system", "panda.config.ts", "scripts/*.ts"]
+  "exclude": [
+    "node_modules",
+    "styled-system",
+    "panda.config.ts",
+    "scripts/*.ts"
+  ]
 }

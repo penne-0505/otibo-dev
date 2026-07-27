@@ -2,7 +2,7 @@
 
 ## 0. System Metadata
 
-- **Current Max ID**: `Next ID No: 23` (タスク追加時にインクリメント必須)
+- **Current Max ID**: `Next ID No: 25` (タスク追加時にインクリメント必須)
 - **ID Source of Truth**: このファイルの `Next ID No` 行が、全プロジェクトにおける唯一の ID 発番元である。
 
 ## 1. Task Lifecycle (State Machine)
@@ -306,6 +306,32 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
 
 ## Backlog
 
+### Site-Enhance-24: [Enhance] First View shaderの凍結を解除し、飽和白芯を再評価する
+
+- **Title**: [Enhance] First View shaderの凍結を解除し、飽和白芯を再評価する
+- **ID**: Site-Enhance-24
+- **Priority**: P3
+- **Size**: M
+- **Risk**: Medium
+- **Area**: Site
+- **Dependencies**: [Site-Feat-17]
+- **Goal**: pageがdeployableになった後、checkpoint 69の凍結を解除するか維持するかを、実利用の観察に基づいて決めている。
+- **Acceptance Criteria**:
+  - AC-001: 公開後のFirst Viewについて、弱点として現れた症状か、現状維持で足りるかがオーナー判断として記録される。
+  - AC-002: 凍結解除する場合、checkpoint 69の解像感を損なわない新しい因果が示されてから着手する。係数変更や模様追加を解除理由にしない。
+  - AC-003: 着手する場合、構造QAより先にowner実見を通す順序で進める。
+- **Steps**:
+  1. [ ] deploy後のFirst Viewを実利用の文脈で観察する
+  2. [ ] 凍結維持 / 解除をオーナー判断として記録する
+  3. [ ] 解除する場合、AC-038の飽和白芯を1軸のvariantとして再開する
+- **Description**:
+  - Context: DEC-017でcheckpoint 69をproduction暫定baselineとして凍結した。AC-038の飽和白芯は未達のままdeferredであり、探索を放棄したのではなく順序を後ろへ送った。
+  - Notes: 過去に29 / 50 / 52 / 89の4回、構造QAのPASS後にowner視覚レビューで棄却されている。再開時は同じ消耗を繰り返さないこと。`otibo`の低い視認性は意図であり、改善対象ではない。
+- **Plan**: _docs/plan/Site/first-view-light-shader/plan.md
+- **Intent**: _docs/intent/Site/first-view-light-shader/decision.md
+- **QA**: _docs/qa/Site/first-view-light-shader/test-plan.md
+- **Verification**: _docs/qa/Site/first-view-light-shader/verification.md
+
 ### Docs-Chore-1: [Chore] Review and customize AGENTS.md
 
 - **Title**: [Chore] Review and customize AGENTS.md
@@ -404,12 +430,14 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   - AC-037: Layeredの寒色背景、cream色の中間光、暖色高輝度域、白芯への色軌跡を、完成RGBではなく正規化した入射chromaticityとsensor responseから再現する。height mapはnormal / roughness / ambient visibility / bounded direct self-visibilityを介して一つのradiance計算へ作用し、teal-green偏り、赤橙の帯、白芯への唐突な遷移を解消しながらmacro構図、決定性、responsive、scroll / exit washを維持する。
   - AC-038: DEC-012のcheckpointを基準に、既存macro field内の半影、fragmentごとの入射方向、height-mapのdirect response、高輝度radiance由来glareを一つの仮想面光源と遮蔽物へ接続する。広い面光源と同心の小coreをsample単位で積分し、狭いcoreの応答は同じ遮蔽物に対するsource coverageを保持する。emitter radianceは遮蔽状態から独立して固定し、遮蔽で失われたcore energyを広い粗いlobeやambientへ再配分しない。広いemitterと小coreはそれぞれのdiffuse / specular、visible solid angle、BRDFを保ったままradiance合算まで分離する。可視microstructureは単一のcanonical height近傍から得る法線・曲率・roughness・tangent・visibilityだけで構成し、補助ridge、波形、遠隔height sampleの合成、画面空間grainは使わない。scrollでsourceが正面寄りへ移動してもcanonical normalのbase response自体は減衰させず、入射方向、radiance、sensor saturationから見え方を変える。高輝度coreのglareは同じ遮蔽物を跨ぐ解析PSF半径の範囲だけに残し、光源がその範囲外まで隠れた位置へ固定の輝度floorを残さない。desktop / mobileの進捗0・中間・wash前では、完全に見えるcoreがsensor飽和を越える密な白芯を作り、部分遮蔽がcream→暖色→飽和白の輝度ladderを作る。境界softness、凹凸の明暗、白芯周辺のにじみが同じ光源方向へ同意し、microhighlightは一様な白点noiseではなくhalf-vectorと揃うfacet群だけに選択的に現れる。背景と照射域の局所contrast、高周波の焦点階層、暗い谷と方向整合した微細反射が同時に読める。終端白は完成RGBのwhite mixではなくscene radianceへのscroll同期露光とsensor saturationから到達する。Layeredの斜め構図、寒色背景、cream→暖色→飽和白の階層、決定性、responsive、exit washを維持し、数値は回帰guardrailに限定する。
   - AC-039: checkpoint 52を固定emitter transportの構造証拠として保全し、checkpoint 58〜61のpixel-footprint covariance系は白点を減らしても局所contrastを平均化した不採用経路として扱う。canonical heightのfine / coarse slopeを同一近傍から分離し、coarseを抑えたmicro slopeを平均法線やcovariance lobeへ潰さず、同じ有限面光源のdiffuse / anisotropic GGXへ直接渡す。detail専用mask / radiance / final RGB加算なしで、暗部では細部が沈み、中間光で微細な織りが解像し、同心coreのsensor飽和で白芯へ連続的に消えることをdesktop / mobileで目視する。波、亀裂、salt-and-pepper粒子、均一な織目、receiver-space面塗りを再発させず、Layeredの斜め構図・寒暖階層・意図的な白飛びをcheckpoint 69以上に保つ。
+  - AC-040: （棄却）DEC-016のHDR scene / specular-only PSF経路。checkpoint 89まで実装したが、失敗隔離で主因はPSFではなくcoarse-directed specularであり、owner未採用。作業基準はAC-039 / checkpoint 69へ戻す。同経路の再採用は、69の解像感を損なわない新しい因果が示されたときに限る。
+  - AC-041: DEC-017により、checkpoint 69がFirst Viewのproduction暫定baselineとして凍結されている。shaderの光・色・材質・height mapを変更せず、`otibo`の低い視認性を欠陥として扱わず、AC-038の飽和白芯を未達のまま保持したまま、残りのstepでpageをdeployableにする。
 - **Steps**:
   1. [x] `Site-Enhance-14`のshader-only local baselineを完了する
   2. [x] 4段階それぞれのcontent contractを定義する
-  3. [ ] owner copy、掲載product、status、asset、link、contact / legal導線をcontractへ充足する（文言とMedo logoは初版反映済み。実在mediaがないproductのproduction placeholderは除去済み）
+  3. [x] owner copy、掲載product、status、asset、link、contact / legal導線をcontractへ充足する（2026-07-28、Publication Gateの5項目を根拠つきで充足。principle copyはowner承認済み。Medoを`テスト中`、Saraeを`構想中`へ実態訂正し、Saraeのdescription正本をsarae repoのproduct-conceptへ差し替えた）
   4. [x] 全体compositionとproduct紹介の候補表現を試作・判定する
-  5. [ ] responsive / motion / semantic / keyboard behaviorを実装する（`@otibo/ui@0.4.0` primitiveへの組み直しを進行中）
+  5. [ ] responsive / motion / semantic / keyboard behaviorを実装する（2026-07-30、keyboardは実操作でPASS。principle見出しを`textStyle("display.sm")`へ移しsite側のdesktop上書きを解消したが、`@otibo/ui`が未publishのため確定していない。同日Option Aとしてmobile 47.5rem breakpointで`.sectionHeading h2`を`xl` (31.5px)へ段下げし、principle mobileのclamp下限と一致させてprinciple >= Products階層を回復した（owner visual approval待ち）。同日reduced motion体験はowner判断で現状維持を採用（`prefers-reduced-motion: reduce`宣言を尊重、exit washの代替演出は入れない）。同日Products領域をβ（DEC-012 / editorial chapter grammar）へ切替。gallery two-pane / `ProductMedia` / `Product.media` / `MediaFrame`・`ScrollArea` importを撤去し、単一columnのchapter articleへ再構成した。全gate PASS・shader SHA不変。残るは`@otibo/ui` publishとowner visual approval。2026-07-31、owner判断でProducts領域をκ（DEC-013 / column-featured bento grid）へ再収束。DEC-012はsuperseded by DEC-013として履歴保持し、`app/_components/top-page/TopPageContent.tsx` / `top-page.module.css`を bento composition（Medo tall + Sarae/Stash stacked）へ再構成、`public/products/medo/ss-home.png`にMedo実asset投入。併せてDEC-014 / INV-011 / GP-001（見出し補助copyのcopy restraint原則）を追加。全gate PASS・shader SHA不変。同日、owner が κ 統合の desktop 1280 / mobile 375 実画面を確認し visual approval を明示、AC-008 は provisional PASS として承認（最終 visual ではなく方向性承認、final approval は interaction 詳細 / mobile Medo image frame 判断 / 他 section polish 完了後）。残るは`@otibo/ui` publish と AC-008 final approval）
   6. [ ] static build / Workers dry-run / browser QA / owner reviewを実施する
   7. [ ] verificationがPASSになった完成ページだけをdeploy candidateにする
   8. [x] First Viewのscroll-linked入射光表現を比較し、現状案を詳細調整の00 baselineへ収束する
@@ -434,8 +462,9 @@ Risk の詳細は `_docs/standards/quality_assurance.md` を参照する。
   27. [x] 3019を本線3000へ収束し、写真背景3020を独立した3001として残して最終比較portを整理する
   28. [x] 3019をチェックポイント保存し、完成RGBの合成をambient + visibility × direct BRDFへ置き換え、desktop / mobile / scroll / debug fieldで検証する
   29. [x] Layeredの色軌跡を入射chromaticityとsensor responseへ移し、bounded self-visibilityをdirect irradianceへ接続して、desktop / mobile / scrollでmacro構図・色遷移・局所応答を収束する
-  30. [ ] macro field内の半影・入射方向・height responseを一つの仮想面光源と遮蔽物へ接続し、単一canonical height由来の微細反射へ収束する（checkpoint 69でdesktop初期像の方向性はowner accepted。完成判定、追加refinement、mobile / scroll / exit washは残る）
+  30. [x] macro field内の半影・入射方向・height responseを一つの仮想面光源と遮蔽物へ接続し、単一canonical height由来の微細反射へ収束する（2026-07-28、DEC-017によりcheckpoint 69をproduction暫定baselineとして凍結。オーナーがdesktop初期像を実見して受理。飽和白芯=AC-038は未達のままdeferred。凍結解除条件はDEC-017とSite-Enhance-24を参照）
   31. [x] canonical heightのfine / coarse slopeを分離し、coarseを抑えたmicro slopeを平均化せずfinite-source diffuse / anisotropic GGXへ直接渡す。広い暖色radianceと同心coreのshared sensor pathで、中間光の微細解像と飽和白芯を両立する（checkpoint 69）
+  32. [x] DEC-016の二段撮像を試行し、失敗隔離のうえ棄却する（A=69、B=69+PSF、C=coarse-directed。主因はC。rootはAへ復帰）
 - **Description**:
   - Context: 旧Products / About / Contact / Footerはshaderとvisual canon確立前の初期実装で、Panda CSS stylesheetも実配信されていなかった。旧構成の修復ではなく、site purposeから下流を再設計する。
   - Notes: 「First View → principle的な短文 → product紹介 → contact / 所在」を上位情報骨格とする。これは責務と読む順序であり、固定section templateやproduct cardを必須にしない。shader-only状態はproduction deploy禁止。First Viewの親区間は線形scrollの210svhを確定値とし、終盤washを進捗0.74〜1.00へ分散する。wordmarkはwashの逆数で薄くし、全面白では残さない。素材baselineは3072x6144の非均一microstructureとtexel基準の法線・曲率へ収束した。GPU textureは単一channel `R8`で保持し、4096x8192案の階層性をWQHDで許容範囲内に保ちながら配信可能な単一assetへ閉じる。光路距離`t`の探索は不採用で閉じ、後続の見入り比較はINV-002 / INV-021の適用範囲限定を前提とする。dynamic range再訪も物理的一貫性を欠くため不採用で閉じる。L1〜L3は局所的なmaterial realismを示した一方で3000の構図を失ったため不採用とした。3000の光場を仮想入射光として固定したhybrid material responseは3019で比較を完了し、オーナー判断により本線3000へ採用した。次段では3019を保全したうえで、構図fieldだけを拘束し、完成RGBのmixをscene-referredなambient / direct radianceへ置き換える。写真背景3020は別方向の価値を持つためshaderへ混ぜず、独立した3001として維持する。

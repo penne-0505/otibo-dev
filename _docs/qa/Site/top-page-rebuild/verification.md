@@ -6,7 +6,7 @@ qa_status: partial
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-11
-updated_at: 2026-07-22
+updated_at: 2026-07-31
 references:
   - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/plan/Site/top-page-rebuild/plan.md"
@@ -443,7 +443,7 @@ Browser QA:
 | AC-003 | PASS | First Viewの局所契約と証跡を専用intent / QAへ委譲し、トップページ側では下流接続だけを判定する |
 | AC-004 | PARTIAL | 全page体験は実装。product facts / assetsの公開前確認が未完了 |
 | AC-005 | PARTIAL | Principle / contact / legalは追跡可。product status / destination / assetは未承認 |
-| AC-006 | PARTIAL | desktop / mobile / semantic / internal keyboard linkを確認。全keyboard巡回とreduced-motion browser QAは未実施 |
+| AC-006 | PARTIAL | desktop / mobile / semantic / keyboardを確認。keyboardは2026-07-30に実操作でPASS（tab order 5要素、focus ring contrast 8.58:1 / 6.51:1、初回Tab跳躍後もshader健全）。reduced-motionの体験判断とmobile階層逆転が残る |
 | AC-007 | PASS | root static buildとWorkers dry-run成功 |
 | AC-008 | PARTIAL | First View wordmarkはオーナー承認済み。shader本体と3秒 / 30秒のproduction visual全体は未承認 |
 
@@ -461,6 +461,7 @@ Browser QA:
 | DEC-008 | PASS | legal route、static export、Workers Static Assets dry-runを維持した |
 | DEC-009 | PASS | logo / media / typography roleを`@otibo/ui@0.4.0`へ委譲し、site CSSはcompositionを所有する |
 | DEC-010 | PASS | section / product境界を余白とsurfaceで表現し、意味のない外枠 / dividerを除去した |
+| DEC-011 | PARTIAL | sizeは`textStyle` roleが持ち、site側の上書きはmobile段下げ1例外へ縮小した（2026-07-30）。ただし参照する`display.sm`が未publishのため、上書き削除を確定扱いにできない |
 
 ## Invariant Coverage
 
@@ -540,15 +541,20 @@ Browser QA:
 - product description / statusはprototype値であり、公開事実としての再確認が必要。
 - media枚数とmobile横送りは、実assetのaspect ratio次第で再調整が必要になる。
 - 110svhの照明操作区間が30秒以内の理解を遅らせる可能性があり、ページ全体のowner reviewが必要。
-- `./scripts/check-docs.sh`は今回の変更外にある`App/top-page-initial`、`App/ui-integration`、`App/scaffold`の
-  過去verification 3件を理由にFAILする。今回更新したtop-page-rebuild文書の追加エラーはない。
+- ~~`./scripts/check-docs.sh`は`App/top-page-initial`、`App/ui-integration`、`App/scaffold`の過去verification
+  3件を理由にFAILする~~ 2026-07-30時点で解消。`./scripts/check-docs.sh`はexit 0（78 PASS）で通る。
+- **production buildが未publishの依存に乗っている。** principle見出しの63pxは`@otibo/ui`の未publish `dist`を
+  node_modulesへ手で置いた状態に依存し、clean installや`npm install`で5.5remへ巻き戻る。publish完了まで
+  現buildをdeploy candidateとして扱えない。退避元は`@otibo/ui@0.4.0`のdist backup。
 - 3072 PNGは17,364,753 bytesある。4096の見た目を再追求する場合は単一PNGへ戻さず、分割texture、
   圧縮形式、段階読込みを別の性能比較として扱う必要がある。
 
 ## Follow-up TODOs
 
 - `Site-Feat-17` Step 3を継続し、product facts / destinations /実assetを充足する。
-- 実asset反映後にresponsive / reduced motion / keyboard QAとproduction visual reviewを行う。
+- 実asset反映後にresponsive / reduced motion QAとproduction visual reviewを行う（keyboardは2026-07-30にPASS）。
+- `@otibo/ui`の`display.sm`をcommit → bump → publishし、otibo-devの依存を更新してnode_modulesの手差し替えを解消する。
+  publishはowner実行（不可逆・passkey必須）。
 - First Viewの次の調整は専用intent / QAで扱い、このverificationには全体接続の結果だけを反映する。
 
 ## Product Asset Inventory — 2026-07-11
@@ -565,3 +571,696 @@ Browser QA:
 - PASS: `npm test` — 4 files / 38 tests、`npm run typecheck`、`npx biome check app/_components/top-page/TopPageContent.tsx app/_components/top-page/top-page.module.css`。
 - PASS: `npm run build` — static 9 routes。最終のWorkers dry-runとdocs validationはFirst View checkpoint 52と同一closure runで確認する。
 - **Verdict remains PARTIAL.** production placeholderというINV-007 / INV-010違反要因は除去した。product description / status / destinationの公開直前確認、実assetが加わる場合のmedia QA、full-page reduced motion / keyboard、3秒 / 30秒とproduction visualのowner承認は未完了である。
+
+## 2026-07-28 content truth re-confirmation and Publication Gate audit
+
+`Site-Feat-17` step 3のために、Content ContractとPublication Gateへ現行実装を照合した。First Viewは
+DEC-017で凍結済みであり、本監査でshader / height map / engine / policyは変更していない。
+
+### Publication Gate audit
+
+| Gate | 判定 | 根拠 |
+|------|------|------|
+| owner-authored principle copyが確定している | PASS | 2026-07-28、オーナーが現行copy（見出し + 2段落）を承認済みとして公開可と明示した。 |
+| 各productのname / description / statusが公開直前に再確認されている | PASS | 下記 product truth correction を参照。 |
+| 任意assetとlinkが実在し現状と一致している | PASS | 実在assetはMedo iconのみ。UI image、destination linkはどこにも置いていない。 |
+| contact / legal routeが到達可能である | PASS | `contact@otibo.dev`のmailto、`/tokushoho/`、Medoのprivacy / terms / account-deletionがfooterから到達可能。 |
+| 未確定値をplaceholderや生成copyで完成済みに見せていない | PASS | logo未所持productは頭文字fallbackのみ。捏造したlogo / 画面 / linkはない。 |
+
+### Product truth correction
+
+repo実態を確認し、2026-07-11 inventoryの誤りを訂正した。詳細は
+`_docs/plan/Site/top-page-rebuild/plan.md`の§Product source re-confirmation — 2026-07-28。
+
+- **Medo**: `プロトタイプ` → `テスト中`。オーナー確認により、ストア公開が近い実態へ更新した。
+- **Sarae**: `プロトタイプ` → `構想中`。**実装が存在しない**。repoは2026-07-14のinitial commit以降、
+  docs-driven templateと設計ドキュメントのみで構成され、application codeを含まない。
+  掲載中のdescriptionは`_docs/draft/Core/product-concept/notes.md`（sarae repo、2026-07-22更新）と
+  整合するため文言は維持し、statusだけを実態へ合わせた。
+- **Stash**: `開発中`のまま。`lib`配下に41のDartファイルがあり、記載と整合する。
+
+`プロトタイプ`はContent Contractのstatus例（`公開中` / `テスト中` / `開発中` / `構想中`）に含まれない
+表記でもあった。今回の訂正で3製品ともcontract例の語へ揃った。
+
+### Incidental fix
+
+- `npm run lint`が`worktrees/first-view-shader/biome.json`をnested root configurationとして検出し、
+  check全体を中断していた。`biome.json`の`files.includes`へ`!**/worktrees`を追加して解消した。
+  この中断により`tsconfig.json`のformat差分が長期間検出されていなかったため、併せて`lint:fix`で整えた。
+  worktree自体は削除していない。
+
+### Evidence
+
+- PASS: `npm run lint` — 35 files、fixなし。
+- PASS: `npm run typecheck`。
+- PASS: `npm test` — 4 files / 38 tests。
+- PASS: `npm run build` — static 9 routes。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh` — exit 0。
+- PASS (AC-041 / DEC-017): `public/first-view/light.frag`のSHA-256は
+  `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8`のまま。凍結境界を越えていない。
+
+### Residual gaps
+
+- desktop / mobileでの実見は未実施。Browser paneが表示されずagent側から描画取得ができなかった。
+  status表記の変更は視覚的にBadgeのテキスト長へ影響するため、step 5 / 6のresponsive QAで確認する。
+- reduced motion、keyboard navigation、semantic structure（AC-006）は未検証。step 5の対象。
+- 3秒 / 30秒体験とproduction visualのowner承認（AC-008）は未了。
+- Saraeを実装のないproductとして掲載し続けるかは、contract上は許容だがowner判断の余地が残る。
+
+### Verdict
+
+- **AC-005（principle、product情報、contact / legal導線の承認済みsource追跡）: PASS.**
+- **step 3: 完了。** Publication Gateの5項目すべてが根拠つきで満たされた。
+- **Verdict remains PARTIAL.** AC-006 / AC-008とresponsive / motion / keyboardが未了のため、
+  `Site-Feat-17`全体は完了不可。次はstep 5。
+
+
+### Decision Conformance — 2026-07-28
+
+- **DEC-005 / INV-005: PASS.** principle copyはオーナー執筆・承認済みとして確定した。生成文で公開可能状態を
+  作っていない。承認の事実を本verificationへ記録し、Publication Gateの該当項目を根拠つきで閉じた。
+- **DEC-007 / INV-007: 違反を検出し是正した。** 本監査以前、Saraeのstatus`プロトタイプ`は存在しない
+  prototypeを主張しており、「実在しないproduct、status、UI componentを展示材料にしない」に反していた。
+  repoに実装がないことを確認のうえ`構想中`へ訂正し、INV-007を回復した。Medoの`テスト中`もowner確認済みの
+  実態へ揃えた。**この誤りはDEC-007のWhyがまさに防ごうとしたものであり、statusを実装実態から独立に
+  書けてしまう構造が原因である。**再発防止として、plan §Product source re-confirmationへ根拠列を持つ
+  表を追加し、statusの変更が根拠なしに行われない形にした。
+- **DEC-007 / INV-009: PASS.** 3製品ともname、owner確認済みdescription、確認時点に即したstatusを備える。
+  `プロトタイプ`はContent Contractのstatus例に無い語でもあり、今回3件ともcontract語彙へ収束した。
+- **DEC-007 / INV-010: PASS（変更なし）.** 実在assetはMedo iconのみ。logo未所持productは頭文字fallbackで、
+  捏造したlogo / UI画像 / 外部linkはない。意図的な省略として維持されており、「埋めて直す」ことをしていない。
+- **DEC-001 / INV-001: PASS.** pageはshader-only状態ではなくprinciple以降を持つ。本セッションでdeployは
+  実行していない。
+- **DEC-008 / INV-008: PASS.** 法務routeは変更せず、static export 9 routesとWorkers dry-run 495 assetsが成功した。
+- **DEC-009 / DEC-010: 本監査の対象外。** editorial primitiveのdesign system正本化とresponsive / typography
+  境界はstep 5で扱う。本セッションでは`top-page.module.css`を変更していない。
+- **First View DEC-017: PASS.** `light.frag`のSHA-256は
+  `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8`のまま。凍結境界を越えていない。
+  AC-038のdeferredとAC-040のnot-applicable、wordmarkの低視認性という意図的な省略は、いずれも
+  「直されて」おらず、Intent / QAに可視のまま残っている。
+
+### Verdict — step 3
+
+- **Verdict: PARTIAL.**
+- **qa_status: partial.**
+- step 3のAC-005（承認済みsourceへの追跡可能性）は満たされた。Publication Gateの5項目も根拠つきで閉じた。
+- 残リスク:
+  - AC-006（responsive / motion / semantic / keyboard）未検証。status文字列の変更がBadge幅へ与える影響も未実見。
+  - AC-008（3秒 / 30秒とproduction visualのowner承認）未了。
+  - desktop / mobileの目視証拠を本セッションで取得できていない（Browser pane非表示）。
+  - Saraeを実装のないproductとして掲載し続けるかは、contract上許容だがowner判断の余地が残る。
+- Follow-up: `Site-Feat-17` step 5 / 6 / 7が未完了のまま残る。TODOからの削除は行わない。
+
+
+## 2026-07-28 typography role realignment (DEC-011)
+
+`Site-Feat-17` step 5の一部として、typography roleのsize委譲を実施した。First ViewはDEC-017で凍結済みで、
+本作業でshader / height map / engine / policyは変更していない（`light.frag` SHA-256は
+`19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8`のまま）。
+
+### Root cause
+
+`textStyle("display")`を3箇所へ当てながら、site側が別々のclampでfont-sizeを上書きしていた。
+
+| 要素 | 変更前のsite上書き | desktop 1600x900 実測 |
+|------|-------------------|----------------------|
+| principle見出し | `clamp(2xl, 4.4vw, 4xl)` | 70.4px |
+| Products見出し | `clamp(2xl, 4.0vw, 3xl)` | 54px |
+| product名 | `clamp(2xl, 4.2vw, 4xl)` | 67.2px |
+
+4.4 / 4.0 / 4.2vwに設計上の意味はなくdriftであり、結果として**h3のproduct名67.2pxがh2のsection見出し
+54pxを上回る階層逆転**が生じていた。
+
+### Change
+
+- Products見出し: `textStyle("display")` → `textStyle("heading.lg")`、site側のfont-size / weight上書きを削除。
+- product名: `textStyle("display")` → `textStyle("heading.md")`、同上。
+- 本文: clamp上書きを削除し`body` roleへ委譲。desktopでは20.25pxで実測変化なし（clampが既にmdへ解決していた）。
+- principle見出し: `display` roleを維持し、font-sizeのみ`clamp(2xl, 4vw, 3.5rem)`で抑える暫定上書きを残す。
+
+### Owner decision — principle見出し
+
+DSのscaleは`heading.lg` 2.25rem → `display` 5.5remが2.44倍跳んでおり、他の刻み（1.17〜1.33倍）に対して
+不連続である。principle見出しに必要な段が存在しないため、3案を実画面比較した。
+
+| 案 | 実測 | 判定 |
+|----|------|------|
+| `display` | 99px、2行 | 大きすぎる |
+| `heading.lg` | 40.5px | section見出しと同サイズ。かつbody書体へ落ち本文の延長に見える |
+| **63px暫定上書き** | **63px、1行** | **採用** |
+
+63pxは2.25remと5.5remの幾何平均にあたり、上下とも1.57倍で揃う。オーナーは63pxと72pxを別ポート
+（3063 / 3072）で並べて比較したうえで63pxを採用した。`heading.lg`が不適だった主因はサイズではなく
+**書体がbodyへ変わること**であり、この知見はDS側への依頼へ反映した。
+
+### Result — desktop 1600x900 実測
+
+principle 63px > Products 40.5px > product名 31.5px > 本文 20.25px。階層逆転は解消した。
+横overflowなし（`scrollWidth` = `innerWidth` = 1600）。
+
+### Incidental fixes
+
+- **日本語本文のmeasure**: `.productCopy > p`が`max-width: 32ch`だった。`ch`は"0"の字幅基準のため
+  全角では約20字にしかならず行が詰まりすぎていた（実測409px / 20字）。全角1字≒1emを前提に`34em`へ変更。
+- **lint断絶**: `npm run lint`が`worktrees/first-view-shader/biome.json`をnested root configurationとして
+  検出し、check全体を中断していた。`biome.json`の`files.includes`へ`!**/worktrees`を追加。この中断により
+  `tsconfig.json`のformat差分が長期間未検出だったため、併せて`lint:fix`で整えた。worktreeは削除していない。
+
+### Evidence
+
+- PASS: `npm run lint` — 35 files、fixなし。
+- PASS: `npm run typecheck`。
+- PASS: `npm test` — 4 files / 38 tests。
+- PASS: `npm run build` — static 9 routes。
+- PASS: `npm run deploy:dry-run` — `out`の495 assetsをasset-onlyで受理。
+- PASS: `./scripts/check-docs.sh` — exit 0。
+- PASS: desktop 1600x900のcomputed font-size実測（上表）と横overflow不在。
+
+### Residual gaps
+
+- **mobile 390x844で階層逆転が残る**: principle見出し31.5px < Products見出し40.5px。`display` roleが
+  390px幅に収まらないためsite側で段下げしているが、下げ幅がsection見出しを下回る。**この逆転は本変更で
+  作り込んだものではなく、変更前から同じ値で存在していた**（変更前もprinciple 31.5px / Products 40.5px）。
+  解消には、mobileでsection見出しを下げるか、principleの段下げ量を見直すかの判断が要る。未決。
+- keyboard操作とreduced motionの実挙動は未検証。focus指定はDS側に22の`focus-visible`ルールがあり、
+  site CSSはoutlineを一切上書きしていないことを静的に確認したのみ。
+- 3秒 / 30秒体験とproduction visualのowner承認（AC-008）は未了。
+- principleセクションは高さ1044pxに対し内容390px（充填率37%）。読む速度への影響は指摘済みで未着手。
+
+### Follow-up
+
+`@otibo/ui`へ`display.sm`（3.5rem、display書体を継承）を追加する依頼をDS側へ渡した。実装は完了報告済みだが
+**Unreleased段階でありconsumerでの描画未確認**。publish前に`dist/styles.css`差し替えによる実画面確認を
+行う方針で、publishはowner確認（不可逆・passkey必須）を前提とする。リリース後、
+`.principle h2`の暫定上書きを削除し`textStyle("display.sm")`へ差し替える。
+
+### Verdict
+
+- **DEC-011: PASS.** typography roleのsize委譲が成立し、例外2箇所は解消条件つきで追跡可能である。
+- **Verdict remains PARTIAL.** step 5は未完了。mobile階層逆転、keyboard / reduced motionの実挙動、
+  AC-008のowner承認が残る。
+
+
+## 2026-07-28 AC-006 static analysis (keyboard / reduced motion)
+
+実操作の前に、source readingで確定できる範囲を切り分けた。実挙動の確認は未了である。
+
+### 確定: reduced motionで下流contentへ到達できなくなることはない
+
+First Viewの固定は純粋なCSSである。`app/page.module.css`の`.firstViewScroll`が`height: 210svh`を持ち、
+その直下の`section`が`position: sticky; top: 0`で貼り付く。scrollの解放をJSの進捗値が制御していない。
+
+したがって`resolveLightScrollProgress`がreduced motionで`0`を返しても（`light-policy.ts:52`）、
+page scroll自体は通常どおり動作し、Principle以降へ到達できる。「進捗が0に固定されると下流が
+永久に露出しない」という失敗様式は、この構造では発生しない。
+
+### 未確定: reduced motion時の体験
+
+進捗0固定により、**終盤のexit washが一度も発生しない**。reduced motion利用者は210svhの不変な像を
+scrollし、Principleが白への遷移なしに現れる。wordmarkも`resolveLightExitWash(0) = 0`のため
+opacity 1のまま残る（DEC-005の「署名が光の場より長生きしない」という意図とは整合する）。
+
+破損ではないが、設計上の接続が欠落した状態である。許容可否はowner判断を要する。
+
+### 未確定: keyboard
+
+focusable要素はページ全体で5つ（contactのmailto link、footerの法務link 4つ）。First Viewには存在しない。
+
+- **focus ringの視認性**: DS側に`focus-visible`ルールが22件あり、site CSSはoutlineを一切上書きして
+  いないことを静的に確認した。ただしaccent outlineが`--colors-bg-sunken`（contact）と`--colors-bg`
+  （footer）の各面に対して十分なコントラストを持つかは、描画を見ないと判定できない。
+- **初回Tabの挙動**: focusable要素が210svhより下にしか存在しないため、読み込み直後のTabでbrowserが
+  contact linkまで自動scrollする。実質skip linkとして機能するが、その急なscrollがstickyおよび
+  scroll-linked描画と競合しないかは未確認。
+
+### 方法上の注記
+
+`light-policy.test.ts`の38 testsは「reduced motionで進捗が0を返す」ことを保証するが、
+**0を返したときにpageが使えるか**は保証しない。構造QAのPASSを実挙動のPASSへ読み替えない。
+本節で構造側は確定したが、視覚・操作側は残る。
+
+### Residual
+
+- reduced motion実環境でのscroll一往復（emulation可否は未確認。OS設定の一時変更が要る可能性がある）。
+- Tab 5回によるfocus ring目視とtab orderの確認。
+- **AC-006: 未了。** 構造は安全と確定、見え方と操作は未確認。
+
+
+## 2026-07-30 display.sm consumerでの描画確認とAC-006 keyboard
+
+### display.sm: consumer描画を確認、site上書きを解消
+
+`@otibo/ui`のUnreleased `dist`をconsumerの`node_modules/@otibo/ui/dist`へ差し替え、
+`.principle h2`のfont-size上書きを削除して`textStyle("display")`を`textStyle("display.sm")`へ移した。
+
+先の想定と異なり、`textStyle()`は`textStyle_${role}`を返すだけの純粋関数であり、runtimeはrole文字列を
+選ばない（`src/theme/typography.ts`）。したがって描画は`styles.css`だけで成立し、型定義だけがtypecheckを
+止める。dist一式を差し替えたのは型を通すためである。
+
+実測（1345x1289、DevTools計測ではなくgetComputedStyle）:
+
+| 要素 | role | computed |
+| --- | --- | --- |
+| principle見出し | `display.sm` | 63px / display / 600 / ls -1.26px / lh 68.04px |
+| Products見出し | `heading.lg` | 40.5px |
+| product名 | `heading.md` | 31.5px |
+
+site側の上書きを外した状態で63pxが出ているため、この値はDS roleが担っている。既存の`display`は
+`5xl`を保持しており（`.textStyle_display { font-size: var(--font-sizes-5xl) }`）、他usageへの退行はない。
+
+### AC-006 keyboard: PASS
+
+前回の静的分析で未確定としていた2点を実操作で確認した。
+
+- **focusable数と順序**: 5要素（contact mailto → 特商法 → Privacy → Terms → Account deletion）。
+  tab orderは視覚順と一致し、想定外の要素は挟まらない。
+- **focus ringの視認性**: `2px solid` accent `rgb(42,68,130)`、offset 2px、`:focus-visible`が一致。
+  canvas経由でsRGBへ変換して測ったcontrastは`--colors-bg`に対し**8.58:1**、`--colors-bg-sunken`に
+  対し**6.51:1**。WCAG 2.1 SC 1.4.11の非テキスト最小3:1を両面で上回る。両面のringを実画面で目視した。
+- **初回Tabの自動scroll**: `scrollY` 0 → 4180へ跳ぶ。210svhのFirst Viewを飛び越えるが、跳躍後も
+  下流contentは正常に描画され、top復帰後もWebGL contextは`isContextLost() === false`、shaderは
+  checkpoint 69の像を保つ。sticky / scroll-linked描画との競合は観測されない。
+
+### 実行したgate
+
+`npm run lint` / `typecheck` / `test`（38 tests）/ `build` / `deploy:dry-run`（495 assets）いずれも成功。
+
+lintは一度失敗した。原因は`.mobileBreak`直後の二重空行で、前セッションで`.principle p`ブロックを
+削除した際の残りである。`biome format --write`で解消した。
+
+### Decision Conformance — 2026-07-30
+
+| ID | Result | 判断 |
+| --- | --- | --- |
+| DEC-011 | PARTIAL | 本変更はDEC-011の`Revisit when`が指示した動作そのものである。site側の恒久的な独自scaleを作らずDS側へ段を追加した点は`Why not`と一致し、上書き例外はmobile段下げ1件へ減った。ただし`Revisit when`の条件は「`@otibo/ui`へ`display.sm`が入ったとき」であり、実際にはpublish前のdistを手で置いた状態で先行実施した。条件は完全には満たしていない |
+| DEC-009 | PASS | typography roleの委譲先を`@otibo/ui`に保ち、site CSSはcomposition（width / white-space / text-align）だけを持つ。primitiveの外観をsite側で再定義していない |
+| DEC-003 | PASS | First Viewのshader / height map / policyを変更していない。`public/first-view/light.frag`のSHA-256は`19c1a127…`のままでAC-041の凍結を維持する |
+
+`Change freedom`との関係では、roleの割り当て変更（`display` → `display.sm`）は「階層が保たれる限り変更できる」範囲に収まる。実測階層は63 > 40.5 > 31.5で逆転していない。
+
+INVは本変更の影響下にない。INV-008はbuild 9 routeとdry-run 495 assetsで維持を確認した。INV-005 / 007 / 009 / 010が扱うcontentには触れていない。
+
+### Residual
+
+- **build再現性**: 現在のbuildはnode_modulesへ手で差し替えた未publishのdistに依存する。clean install
+  からは再現できず、`npm install`で巻き戻る。`@otibo/ui`のbump / publishはowner判断待ち（不可逆・
+  passkey必須）。publishまでこの状態を恒久扱いしない。
+- **reduced motionの体験**: 進捗0固定でexit washが発生しない点は未解決。owner判断待ち。
+- **mobile階層逆転**: 390pxで`.principle h2`が`2xl`まで下がり、Products見出し（40.5px）を下回る。
+  本変更以前から同値で存在。CSS側にowner判断待ちである旨のコメントを残した。
+- **AC-008**: owner承認は未取得。
+
+### Verdict
+
+- **AC-006: PASS（keyboard）**。reduced motionの体験判断は残るが、keyboard操作は成立を実機で確認した。
+- **Verdict remains PARTIAL.** step 5は未完了。reduced motion、mobile階層、AC-008が残る。
+
+
+## 2026-07-30 mobile section heading down-step (Option A)
+
+### Change
+
+`app/_components/top-page/top-page.module.css` の `@media (max-width: 47.5rem)` ブロック内
+`.sectionHeading h2` に `font-size: var(--font-sizes-xl)` を追加し、principle >= Products の階層を
+mobileで維持する。desktopは触れない。JSX / role / product名 / principle side は変更しない。
+
+- 対象selectorは Products section の header 内 h2 のみ（Contact h2 は `.contact h2` selectorで
+  eyebrow role、footer は h2 なし）。CSS module scoping と併せて、他 section への波及はない。
+- clamp は使わない。Products は8字（"Products"）で、375px幅で `xl` = 31.5px でも余白が十分。
+- コメントは既存の `.principle h2` 段下げコメントと同じ位置づけ（下げの根拠と、product名との
+  平坦化について eyebrow が signal を担う旨）を残した。
+
+### Regression discovered and corrected
+
+本セッションの初手では `var(--font-sizes-2xl)` を指定した。これは `heading.lg` role が既に
+`font-size: var(--font-sizes-2xl)` を持つため**値としてno-op**であり、Products は 40.5px の
+まま何も変わっていなかった。coordinator の実画面計測（375px viewport）で判明し、`xl` へ訂正した。
+根本原因の言明: principle mobile の clamp `clamp(xl, 8vw, 2xl)` は 375〜425px 帯では 8vw < xl の
+ため下限側の `xl` が採用される（375px なら 8vw = 30px < 31.5px）。principle mobile の実効値は
+`2xl` ではなく `xl` である。Products を principle 以下へ下げるには `xl` が必要だった。
+
+### 決定と tradeoff
+
+owner判断（Option A）: mobileでは Products h2 を principle h2 の mobile 実効値と同じ `xl` band
+まで下げる。結果として Products (h2, `xl`=31.5px) と product名 (h3, `heading.md`=`xl`=31.5px) は
+視覚的に同サイズへ並ぶ。h2 / h3 の階層は書体・意味論では依然区別され、`What otibo makes` eyebrow
+が section 開始点の signal を担う。
+
+計測値（root 18px、`--font-sizes-xl` = 1.75rem = 31.5px、`--font-sizes-2xl` = 2.25rem = 40.5px）:
+
+| 要素 | role | 現行desktop | mobile 375px (本変更後) |
+| --- | --- | --- | --- |
+| principle h2 | `display.sm` | 63px | 31.5px（clamp 下限 `xl` で確定） |
+| Products h2 | `heading.lg` (site override) | 40.5px | **31.5px（本変更 `xl`）** |
+| product名 h3 | `heading.md` | 31.5px | 31.5px |
+
+principle >= Products の階層は成立する。
+
+### Decision Conformance — 2026-07-30 (mobile down-step)
+
+| ID | Result | 判断 |
+| --- | --- | --- |
+| DEC-009 | PASS | typography role の割当（`heading.lg`）は変更していない。site CSS が持つのは breakpoint 固有の下げ幅（`2xl` band）のみで、role の外観を site 側で再定義していない。同じく `.principle h2` 段下げが受容されているのと同じ扱い。 |
+| DEC-011 | PARTIAL | site 側 override 例外は「principle mobile 段下げ」1件から2件（principle + Products mobile 段下げ）へ増えた。両者とも `@otibo/ui` 側のresponsive contract が育つまでの暫定 override であり、恒久 site scale の再導入ではない。将来 DS 側で mobile band を持てるようになったときの解消余地は残す。 |
+| DEC-010 | PASS | section / product 境界の余白と surface 表現は変えていない。border / divider を再導入していない。 |
+| DEC-003 | PASS | First View shader / height map / engine / policy に触れていない。`public/first-view/light.frag` の SHA-256 は変更前後で `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` のまま（AC-041 / DEC-017 の凍結境界を越えていない）。 |
+
+### Gate 実行結果
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| `npm run lint` | PASS | biome check 36 files、fixなし |
+| `npm run typecheck` | PASS | tsc --noEmit exit 0 |
+| `npm run test` | PASS | vitest 4 files / 38 tests |
+| `npm run build` | PASS | static 9 routes |
+| `npm run deploy:dry-run` | PASS | wrangler dry-run 495 assets |
+| `./scripts/check-docs.sh` | PASS | exit 0 |
+| Shader freeze guard (AC-041 / DEC-017) | PASS | `public/first-view/light.frag` SHA-256 `19c1a127…` unchanged |
+
+### Residual
+
+- **owner visual approval が必要**: mobile 390px viewport で principle >= Products >= product名 の
+  hierarchy が意図どおり読めるか、Products と product名 が同サイズで並ぶ体験が受容されるかは、
+  実画面での owner 判断待ち。本セッションでは browser 検証は行っていない（owner 実施の指示に従う）。
+- Products と product名 が同サイズになるため、eyebrow `What otibo makes` が section signal として
+  機能することが前提。将来 eyebrow の位置や大きさを変更する場合はこの前提も再確認する。
+- 恒久的な解消は `@otibo/ui` 側で mobile band を持つ responsive contract が育つのを待つ。それまで
+  site override 2件（principle / Products）は暫定として `DEC-011` の再訪対象に残る。
+- reduced motion の体験判断、AC-008（3秒 / 30秒 / production visual）は本変更の対象外で未解決のまま。
+
+### Verdict
+
+- **DEC-009 / DEC-010 / DEC-003: PASS.** DEC-011 は暫定 override 例外が2件へ増えた点で PARTIAL、
+  ただし本判断（Option A）自体は owner の明示的な選好で、恒久 site scale の再導入ではない。
+- **Verdict remains PARTIAL.** step 5 は未完了。owner visual approval、reduced motion、AC-008 が残る。
+
+## 2026-07-30 reduced motion 体験判断 (owner decision)
+
+2026-07-28 静的分析節および 2026-07-30 keyboard 節で、reduced motion 時に exit wash が発生せず
+色面 → 白面が scroll edge の cut になる体験を未解決 residual として保留していた。
+
+**owner 判断: 現状維持を採用。**
+
+- 根拠: `prefers-reduced-motion: reduce` はユーザー本人の宣言である。scroll 連動 animation を無効化して
+  wash を発生させない現行挙動は仕様に忠実であり、ユーザーが選択した preference を演出優先で上書きしない。
+- 影響範囲: `app/_components/first-view/light-policy.ts` の `if (reducedMotion) return 0;` を維持。
+  `app/_components/first-view/first-view.module.css` の `@media (prefers-reduced-motion: reduce)` block
+  は現状のまま（canvas transition のみ無効化）。
+- 変更: なし。コード / CSS ともに touch していない。
+- Shader freeze guard: 未変更。本判断は shader / height map / engine / policy に影響しない。
+  `public/first-view/light.frag` の SHA-256 は依然 `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8`。
+
+### Residual (after this decision)
+
+- AC-006 の reduced motion 未確定分は closed。この節に由来する AC-006 residual なし。
+- 検討済みで採用しなかった代替: (b) 静的 bottom gradient、(c) IntersectionObserver 契機 CSS transition、
+  (d) reduced motion 時に First View 区間を短縮。いずれも owner の第一原理（ユーザー宣言の尊重）と
+  合致しないと判断された。将来 owner がこの判断を revisit する余地は残す。
+- step 5 全体としては AC-008、owner visual approval（Option A mobile down-step および full-page
+  visual review）、`@otibo/ui` publish が残る。
+
+### Verdict
+
+- **AC-006 (reduced motion): PASS as-designed.** owner が現行挙動を明示的に採用した。
+- **Verdict remains PARTIAL.** step 5 未完了は AC-008、owner visual approval、`@otibo/ui` publish に絞られた。
+
+## 2026-07-30 Products β editorial pivot
+
+`Site-Feat-17` step 5 の一部として、Products 領域を gallery two-pane から editorial chapter grammar
+（DEC-012 / β）へ切り替えた。First View は AC-041 / DEC-017 で凍結済みであり、本作業で shader /
+height map / engine / policy / wordmark には触れていない。
+
+### Change summary
+
+- `app/_components/top-page/TopPageContent.tsx`
+  - `Product` type から `media` field を削除。
+  - `ProductMedia` function を削除。
+  - `MediaFrameImage` / `MediaFrameRoot` / `ScrollAreaRoot` / `ScrollAreaViewport` の import を削除
+    （grep で ProductMedia 以外の usage が無いことを確認済）。
+  - `.product` の `data-has-media` 分岐と `.productCopy` wrapper を廃止し、
+    article を単一 column の chapter 構造（badge → identity → description）へ整えた。
+  - `LogoFrameRoot` / `LogoFrameImage` / `LogoFrameFallback` は継続使用（DEC-009 準拠）。
+- `app/_components/top-page/top-page.module.css`
+  - 削除: `.product[data-has-media="false"]`, `.product[data-has-media="false"] .productCopy`,
+    `.productMedia`, `.mediaViewport`, `.mediaTrack`, `.mediaTrack[data-count="1"]`, `.mediaItem`,
+    `.mediaFrame`, mobile block 内の `.mediaTrack` / `.mediaTrack[data-count="1"]` /
+    `.mediaViewport` / `.mediaItem`, `@media (prefers-reduced-motion: reduce)` の `.productMedia` 単独 rule。
+  - 変更: `.product` を single-column article 幅（`width: min(100%, 44rem); margin: 0 auto`）へ再構成。
+    `.status` へ `align-self: start` を付与（`.productCopy` wrapper がなくなり grid item として置かれる）。
+    `.productCopy > p` の selector を `.product > p` へ書き換え（wrapper 削除の追随）。
+  - Mobile: `.product` は `width: 100%`（chapter 幅の上限を外し、`.products` 全幅で読ませる）。
+  - コメント: DEC-012 由来の chapter 決定を CSS コメントで明示。
+- copy / status / product 順序 / 責務段階数（4段階）に変更なし。
+
+### Decision Conformance
+
+| ID | Result | 判断 |
+| --- | --- | --- |
+| DEC-003 | PASS | shader / height map / engine / policy / wordmark 未変更。`public/first-view/light.frag` の SHA-256 は変更前後で `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` のまま（AC-041 / DEC-017 の凍結境界を越えていない） |
+| DEC-006 | PASS | product 紹介の形式（card / gallery / grid）を固定せず、chapter という別 composition を採用可能である DEC-006 の Change freedom 内での判断 |
+| DEC-007 / INV-007 / INV-010 | PASS | 欠落 asset を補作していない。Sarae / Stash に screenshot placeholder を作らないという方針を、gallery 撤去でより自然な形で維持 |
+| DEC-009 | PASS | `LogoFrame` / `textStyle` / `Badge` を DS 正本のまま使用。site 側では chapter composition だけを持つ。site 側で primitive を再定義していない |
+| DEC-010 | PASS | product 間の分離は `.productList` の gap（余白）だけで表現。border / divider を導入していない |
+| DEC-011 | PASS | typography role の割当・上書き例外に変化なし。site side での恒久 site scale を再導入していない |
+| DEC-012 (new) | PASS | 本節そのもの。gallery two-pane を廃止し、chapter grammar として実装した |
+
+### Gate results
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| `npm run lint` | PASS | biome check 36 files、fixなし |
+| `npm run typecheck` | PASS | tsc --noEmit exit 0 |
+| `npm run test` | PASS | vitest 4 files / 38 tests |
+| `npm run build` | PASS | static 9 routes |
+| `npm run deploy:dry-run` | PASS | wrangler dry-run 495 assets |
+| `./scripts/check-docs.sh` | PASS | exit 0 |
+| Shader freeze guard (AC-041 / DEC-017) | PASS | `public/first-view/light.frag` SHA-256 `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` unchanged |
+
+### Residual
+
+- **owner visual approval が必要**: desktop 1280px および mobile 375px での chapter rhythm、
+  reading column 44rem の妥当性、status badge / identity / description の縦密度、product 間の gap
+  scale が意図どおり読めるかは、実画面での owner 判断待ち。本セッションでは browser 検証は行っていない
+  （orchestrator が owner と実施する指示）。
+- screenshot supply（Medo だけでも掲載するか、全 product 揃うまで gallery 復活を保留するか）は
+  本判断の対象外。DEC-012 は「supply が揃うまでの表現形式を chapter で確定させる」だけで、
+  supply 自体を閉じるものではない。ownerが将来的にgallery grammarへ戻す余地はDEC-012 `Revisit when`で保持。
+- AC-006 keyboard focusable 数（5要素: contact mailto + footer 4 links）は本変更で増減なし
+  （focusable な要素を追加削除していない）。実操作再確認は不要。
+- `@otibo/ui` publish、AC-008（3秒 / 30秒 / production visual owner 承認）、mobile 階層問題
+  は本変更の対象外で未解決のまま。
+
+### Verdict
+
+- **DEC-012: PASS.** editorial chapter grammar として実装が成立し、gate 全通、shader 凍結を維持。
+- **DEC-003 / DEC-006 / DEC-007 / DEC-009 / DEC-010 / DEC-011: PASS.**
+- **Verdict remains PARTIAL.** step 5 未完了は AC-008、owner visual approval（本 β 含む）、
+  `@otibo/ui` publish に絞られたまま。
+
+### Regression fix — grid item inline stretch（same-day follow-up）
+
+本 β pivot 直後に coordinator が desktop 1280px viewport の DOM を実測し、
+`.status`（Badge span）が article grid の inline 軸で 792px まで stretch されていることを検出した。
+Badge component は `inline-flex` を宣言しているが、CSS Grid の item は既定で `justify-items: stretch`
+（inline 軸を track 幅へ拡張）が効くため、grid item となった時点で intrinsic width が上書きされていた。
+同じ理由で `.identity`（logo + h3 の flex row）も 792px の container 幅を取っていた
+（内部の flex row は左寄せに集合するため視覚的な違和は Badge ほどではないが、container として不正）。
+
+`<p class="textStyle_body">` は 689px（34em / max-width `.product > p`）で意図どおり動作しており、
+本件の対象外。
+
+#### 修正
+
+`app/_components/top-page/top-page.module.css`:
+
+- `.status`: `justify-self: start` を追加（`align-self: start` は保持）。
+- `.identity`: `justify-self: start` を追加。
+
+article grid template、article 幅（`min(100%, 44rem)` centered）、`.product > p` の `max-width: 34em`、
+Badge / LogoFrame component 内部、DS role 割当は変更していない。durable 案として
+`.product { justify-items: start }` を検討したが、それでは `<p>` も stretch を失い intrinsic width へ
+落ちる。`.p` は現状 `stretch` + `max-width: 34em` で 689px を得ているため、grid-container 側で
+`stretch` を無効化すると本文 measure の意図が崩れる。したがって item side での局所 override を選択した。
+
+#### Gate 再実行
+
+| Gate | Result |
+| --- | --- |
+| `npm run lint` | PASS (biome 36 files) |
+| `npm run typecheck` | PASS |
+| `npm run test` | PASS (4 files / 38 tests) |
+| `npm run build` | PASS (9 static routes) |
+| `npm run deploy:dry-run` | PASS (wrangler, 495 assets) |
+| `./scripts/check-docs.sh` | PASS (exit 0) |
+| Shader freeze guard (AC-041 / DEC-017) | PASS — SHA-256 `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` unchanged |
+
+#### 位置づけ
+
+本 fix は上記 β pivot と同日の直接 follow-up であり、独立 cycle として切り出さない。DEC-012 の実装
+契約（single-column chapter, badge → identity → description）は変更しておらず、article 構造で発生した
+grid 既定挙動を補正しただけ。owner visual approval の対象は β pivot 全体（本 fix 適用後の状態）に対して
+求められる。
+
+## 2026-07-31 Products κ bento integration
+
+`Site-Feat-17` step 5 の続きとして、Products 領域を DEC-012（β / editorial chapter）から
+DEC-013（κ / column-featured bento）へ収束した。owner が scratch prototype
+（`~/dev/scratch/otibo-products-kappa/`）で κ 案を実物確認済みで、それを otibo-dev の実装に反映
+する作業。First View は AC-041 / DEC-017 で凍結中であり、本作業で shader / height map / engine /
+policy / wordmark には触れていない。
+
+### Change summary
+
+- `app/_components/top-page/TopPageContent.tsx`（177 行）
+  - `Product` 型に optional `media: { src, alt }` を追加。旧 `logo?: string` field を削除。
+  - `products` 配列を `Record<"medo" | "sarae" | "stash", Product>` 形式へ再構成し、Medo の media
+    に実 asset `/products/medo/ss-home.png` を含める。Sarae / Stash は media 未設定。
+  - Products section header の eyebrow `What otibo makes` を撤去し、h2 のみに（DEC-014 / INV-011）。
+  - 旧 `.product` chapter article の JSX（badge + `.identity` LogoFrame + h3 + description）を
+    3枚の `CardRoot` bento cells（Medo / Sarae / Stash）へ置換。全 Card は `surface="paper"` /
+    `padding="md"` で variant 同一。
+  - Medo Card 内は `CardHeader`（Badge + `CardTitle` + `CardDescription`）+ `.medoMedia` wrapper
+    （`MediaFrameRoot aspect="auto" fit="contain"` + `MediaFrameImage`）。Sarae / Stash は
+    `CardHeader` のみ（image slot なし）。
+  - `LogoFrameRoot` / `LogoFrameImage` / `LogoFrameFallback` の import と usage を Products
+    section から撤去。κ prototype も cards に LogoFrame を使っていなかったため、それに揃えた。
+  - deferred bento-in-bento readiness を JSX / CSS コメントで明示（Medo の image wrapper を
+    `.medoMedia > *` を future nested grid item として並べ替えられる single grid-container point に
+    保つ）。今 cycle では実装しない。
+- `app/_components/top-page/top-page.module.css`（261 行）
+  - 削除: `.productList`, `.product`, `.identity`, `.identity h3`, `.product > p`（DEC-012 の
+    chapter 幅・reading measure を担っていた selector 群）。
+  - 削除: mobile block 内の `.product` / `.product > p` 個別 rule。
+  - 変更: `.sectionHeading` を simplified（h2 only baseline を前提に `.sectionHeading h2, p`
+    の複合 selector を `.sectionHeading h2` 単独へ縮小、`.sectionHeading p` の line-height rule
+    を削除）。
+  - 変更: `.status` selector を Card slot 内 Badge 用に整理（`display: inline-flex` /
+    `align-self: start` / `justify-self: start` / `margin-bottom` 撤去）。CardHeader の gap
+    が rhythm を担うため、margin 系の site override は不要。
+  - 追加: `.productsBento`（desktop grid `minmax(0, 22rem) minmax(0, 1fr)` × `1fr 1fr`）、
+    `.bentoCard`（`height: 100%` / `min-width: 0`）、`.medoCard` / `.saraeCard` / `.stashCard`
+    （grid-column / grid-row 割当）、`.medoMedia` + `.medoMedia > *`（flex 縦下端寄せ + width
+    constraint `min(11rem, 100%)`）。
+  - 追加: mobile block 内で bento を単一 column へ collapse（`grid-template-columns:
+    minmax(0, 1fr)` / `grid-template-rows: auto`）。各 bentoCard は `height: auto`。
+    `.medoMedia > *` は `min(12rem, 60vw)`。
+  - 保持: `.principle` / `.sectionHeading h2` の mobile 段下げ（DEC-011 の Option A 継承）/
+    `.contact` / `.footer` の rule 全て未変更。
+- `public/products/medo/ss-home.png`（新規、260,278 bytes）
+  - `/home/penne/Pictures/dev_assets/medo/ss-home.png` を `mkdir -p` 後 `cp` で追加。
+  - 1080x2400 phone portrait screenshot、Medo の実 asset。DEC-007 / INV-010 に合致する
+    「実在する掲載理由がある任意情報」として採用。
+  - JSX からは `/products/medo/ss-home.png` として参照。
+- `_docs/intent/Site/top-page-rebuild/decision.md`
+  - **DEC-012 を superseded by DEC-013 (2026-07-31) と記載**。原文は履歴保持のため削除せず、
+    冒頭に status ラベルと supersede 参照を追記。owner 判断（履歴保持 = option (a)）に従う。
+  - **DEC-013 を新設**: bento composition の What / Why / Change freedom / Why not（α β γ ι δ η
+    の6候補棄却理由）/ Revisit when。
+  - **DEC-014 を新設**: 見出し補助 copy（eyebrow / lede / subtitle / kicker / tagline / prose）は
+    具体的目的が示せる場合だけ使う原則。2026-07-31 の subagent による eyebrow 追加を owner が
+    棄却した経緯を Why に記載。既存 Contact section の eyebrow role h2 は Change freedom で維持。
+  - **INV-011 を新設**（from DEC-014）: 埋め草としての補助 copy を置かない strict invariant。
+  - **Grammar principles / GP-001** を新設: DEC-014 の運用ガイドライン。
+  - `Enforced in` を更新: DEC-012 superseded の note、DEC-013 / DEC-014 / INV-011 の enforcement
+    先を追加。
+
+### Docs judgment call — copy restraint の記載場所
+
+指示は「`_docs/reference/Site/copy-restraint/reference.md` へ新設するか、
+`_docs/intent/Site/otibo-dev-site-purpose/decision.md` へ追記するか、`Ask judgment`」であった。
+
+判断: **`_docs/intent/Site/top-page-rebuild/decision.md` に DEC-014 / INV-011 / GP-001 として同居させる**
+方針を採用した。site-purpose intent（憲法）は brand voice のスコープに閉じており、composition 判断
+（bento、chapter 等）と一体で運用したい copy restraint は top-page-rebuild の rebuild cycle と同じ
+Decision Register 内にまとめたほうが、DEC-013 → GP-001 → INV-011 の追跡が短く済む。site-purpose 側
+にも将来的に横展開する必要が出た場合（他の section を新設する時など）、intent 引用（`references:`）
+で site-purpose へ持ち上げる。この時点で reference.md を切り出すよりも、まず intent 内で
+運用しながら育てるほうが軽量。lightweight reference.md への切り出しは、他 area にも波及した段階
+で再判断する。
+
+### Decision Conformance
+
+| ID | Result | 判断 |
+| --- | --- | --- |
+| DEC-003 / AC-041 | PASS | shader / height map / engine / policy / wordmark 未変更。`public/first-view/light.frag` の SHA-256 は変更前後で `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` のまま。凍結境界を越えていない |
+| DEC-006 | PASS | product 紹介の形式（card / gallery / grid）を事前固定しないという Change freedom 内での判断。chapter から bento への移行を intent で許容 |
+| DEC-007 / INV-007 / INV-010 | PASS | Medo の実 asset は掲載理由が明確（テスト中の実物 screenshot）で INV-010 の「実在する場合だけ使う」に合致。Sarae / Stash は media 未設定のまま、cell size の差だけで product 間の実態差を表現している |
+| DEC-009 | PASS | `Badge` / `CardRoot` / `CardHeader` / `CardTitle` / `CardDescription` / `MediaFrameRoot` / `MediaFrameImage` / `textStyle` は全て `@otibo/ui` primitive を native usage で採用。site CSS は grid composition のみを持つ |
+| DEC-010 | PASS | cell 間の分離は grid gap のみ。border / divider / accent tinting を導入していない |
+| DEC-011 | PASS | typography role の割当（`heading.lg` / `body`）に変化なし。site 側の恒久 site scale を再導入していない。mobile 段下げ 2件（principle / Products）は継承 |
+| DEC-012 | SUPERSEDED | DEC-013 で置換。実装は bento κ へ収束し、chapter grammar は enforcement 対象から外れた。履歴は decision.md に保持 |
+| DEC-013 (new) | PASS | 本節そのもの。κ bento composition を実装し、mobile collapse / bento-in-bento future readiness / 3枚同一 Card variant を全て満たす |
+| DEC-014 / INV-011 (new) | PASS | Products section header は h2 のみで、eyebrow / subtitle / lede を追加していない。既存 Contact section の eyebrow role h2 は意図的採用として Change freedom 内で維持 |
+
+### Gate results
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| `npm run lint` | PASS | biome check 36 files、fix なし |
+| `npm run typecheck` | PASS | tsc --noEmit exit 0 |
+| `npm run test` | PASS | vitest 4 files / 38 tests |
+| `npm run build` | PASS | static 9 routes（`/`, `/_not-found`, `/medo/{account-deletion,privacy,terms}`, `/sarae`, `/stash`, `/tokushoho`）|
+| `npm run deploy:dry-run` | PASS | wrangler dry-run 496 files（Medo screenshot +1）|
+| `./scripts/check-docs.sh` | PASS | exit 0 |
+| Shader freeze guard (AC-041 / DEC-017) | PASS | `public/first-view/light.frag` SHA-256 `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` unchanged before and after |
+
+### Residual
+
+- **owner visual approval が必要**: κ 案自体は scratch prototype で owner 実物承認済みだが、
+  otibo-dev の実 stack（Next.js 16 static + Panda CSS + 実 asset）へ載せた desktop / mobile
+  最終描画は未確認。特に (a) `.principle` の mobile clamp と `.sectionHeading h2 = xl` down-step
+  下での bento の見え方、(b) Medo screenshot の実寸（1080x2400 の phone portrait を `min(11rem, 100%)`
+  に contain した密度）、(c) Sarae / Stash card の empty body ratio、(d) mobile collapse の
+  順序と gap `--spacing-4` が読みやすいか、が実画面での確認対象。本セッションでは browser 検証は
+  行っていない（orchestrator が owner と実施する指示）。
+- deploy artifact 数が 495 → 496 に増える（Medo screenshot）。単一 asset 260 KB で Workers Static
+  Assets の 25 MiB 上限には十分収まり、`deploy:dry-run` は PASS した。
+- `@otibo/ui` publish 待ち（`display.sm` の未 publish dist を node_modules へ手差ししている状態）
+  は本変更の対象外で未解決のまま。
+- AC-006 focusable 数（5 要素 = contact mailto + footer 4 links）に増減なし。実操作再確認は不要。
+- AC-008（3秒 / 30秒 / production visual owner 承認）は本変更の対象外で未解決のまま。
+- bento-in-bento（Medo に2〜3枚目の image asset が加わったときの nested grid 展開）は現時点で
+  実装せず、`.medoMedia > *` の grid-container point だけ CSS / JSX コメントで残した。
+  Medo に画像が増えた時点で DEC-013 Revisit when (b) に従い判断する。
+
+### Verdict
+
+- **DEC-013 / DEC-014 / INV-011: PASS.** bento composition と copy restraint 原則が実装と intent の
+  両側で成立し、gate 全通、shader 凍結を維持。
+- **DEC-012: SUPERSEDED**（履歴保持）。
+- **DEC-003 / DEC-006 / DEC-007 / DEC-009 / DEC-010 / DEC-011: PASS.**
+- **Verdict remains PARTIAL.** step 5 未完了は AC-008、owner visual approval（κ 統合後の desktop /
+  mobile 実画面）、`@otibo/ui` publish に絞られたまま。
+
+## 2026-07-31 AC-008 provisional approval + desktop/mobile visual approval (owner)
+
+owner が κ 統合後の実画面（desktop 1280、mobile 375）を実機で確認し、以下を明示的に承認した。
+
+### 承認内容
+
+- **AC-008 provisional approval**: 3秒 / 30秒 の体験と production visual の方向性として承認。
+  「最終 visual ではないが、これを詰めていく方向として OK」という位置付け。final production visual
+  approval は残り polish（interaction、他 section、mobile Medo image frame の feature vs bug 判断等）
+  が完了した後に別途取る前提。
+- **desktop 1280 visual approval**: κ bento（Medo 左縦長 + Sarae/Stash 右列積み、eyebrow なし、
+  h2 のみ、fixed copy 厳守）で成立と判定。
+- **mobile 375 visual approval**: bento の単カラム collapse（Medo → Sarae → Stash 縦積み）で成立と
+  判定。Medo phone screenshot が縦支配になる点は実 UI aspect (0.45) の物理的制約として受容。
+
+### Residual
+
+- **AC-008 は provisional**。final approval は以下が全て解決した後に別途取る:
+  - interaction 詳細実装（image click 拡大、hover 追従等の設計フェーズ）
+  - mobile Medo image が周囲 bg と融合して見える点の判断（feature = ecosystem unified feel、
+    bug = phone frame signal 弱化、いずれとするか）
+  - 他 section（Principle、Contact、Footer）の polish
+- `@otibo/ui` publish 判断は未実施（本 approval とは独立）。
+- Shader freeze guard: 本 approval は shader / height map / engine / policy に影響しない。
+  `public/first-view/light.frag` SHA-256 = `19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` 不変。
+
+### Verdict
+
+- **AC-008: PROVISIONAL PASS**。owner が方向性として承認、final approval は残 polish 完了後に取る。
+- **desktop / mobile visual approval: PASS (κ 統合状態で)。**
+- **Verdict remains PARTIAL.** step 5 未完了は `@otibo/ui` publish と、AC-008 final approval に絞られた。
