@@ -1,14 +1,14 @@
 ---
-title: Unknown field
+title: Valid intent schema marker
 status: active
 draft_status: n/a
+intent_schema: 2
 created_at: 2026-07-27
 updated_at: 2026-07-27
 references: []
 related_issues: []
 related_prs: []
-unexpected_contract: true
-fixture_path: _docs/guide/Workflow/example/usage.md
+fixture_path: _docs/intent/Workflow/example/decision.md
 ---
 
-# Unknown field
+# Valid intent schema marker

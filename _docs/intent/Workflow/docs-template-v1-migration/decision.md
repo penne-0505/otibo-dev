@@ -111,7 +111,7 @@ None
 - DEC-001 / DEC-006: cutoff evidenceとbefore / after preservation check。
 - DEC-002 / DEC-003: `_docs/qa/Workflow/docs-template-v1-migration/artifacts/inventory.tsv`。
 - DEC-004 / DEC-005: migration verificationとlock review。
-- DEC-007: `scripts/agent-workflow-hook.mjs`とhook unit / smoke tests。
+- DEC-007: `scripts/agent-workflow-hook.ts`とhook unit / smoke tests。
 
 ## Rollback / Follow-ups
 
