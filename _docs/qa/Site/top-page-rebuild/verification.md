@@ -1264,3 +1264,79 @@ owner が κ 統合後の実画面（desktop 1280、mobile 375）を実機で確
 - **AC-008: PROVISIONAL PASS**。owner が方向性として承認、final approval は残 polish 完了後に取る。
 - **desktop / mobile visual approval: PASS (κ 統合状態で)。**
 - **Verdict remains PARTIAL.** step 5 未完了は `@otibo/ui` publish と、AC-008 final approval に絞られた。
+
+## 2026-07-31 @otibo/ui 0.5.0 adoption
+
+`@otibo/ui@0.5.0` が npm registry に publish 済みとなったため、otibo-dev の pin を `^0.4.0` →
+`^0.5.0` に更新し、`npm install` で registry から正式 tarball を取り直した。これにより 2026-07-29
+時点で hand-swap されていた local otibo-ui dist（display.sm 先行取り込みおよび κ 統合で必要な
+primitive を先出しするための手動置換）は解消された。
+
+### Pin bump
+
+- `package.json`: `"@otibo/ui": "^0.4.0"` → `"^0.5.0"`。
+- `package-lock.json`:
+  - root deps 側 pin が `^0.5.0` に更新。
+  - `node_modules/@otibo/ui` エントリが `version 0.4.0` (integrity `sha512-+hj7fctW...`) →
+    `version 0.5.0` (integrity `sha512-Cz2EtSyN...`)、`resolved` は `.../ui-0.5.0.tgz` に更新。
+  - `npm install` 結果: `added 109 packages, removed 99 packages, and audited 110 packages`。
+    devDependencies 全般の transitive 更新分を含み、`@otibo/ui` 単体の差分ではない。
+
+### Hand-swap vs 0.5.0 dist 等価性
+
+install 前 (hand-swapped local otibo-ui dist) と install 後 (registry 0.5.0 dist) の観測可能
+成果物を SHA-256 で比較:
+
+| file | before (hand-swap) | after (registry 0.5.0) | 判定 |
+| --- | --- | --- | --- |
+| `dist/styles.css` | `09abb75a42dd...` | `09abb75a42dd...` | identical |
+| `dist/index.js` | `fabf68899e2e...` | `fabf68899e2e...` | identical |
+| `dist/index.d.ts` | `afa345823437...` | `cb210af96904...` | differs |
+
+`styles.css` と `index.js` は byte-identical。`index.d.ts` のみ差分があるが、consumer が実際に
+参照する `textStyle` union と `TypographyRole` は両側で `"display" | "display.sm" | "heading" |
+"heading.sm" | "heading.md" | "heading.lg" | "body" | "eyebrow" | "caption"` を維持しており、
+`typecheck` が PASS することで API 表面の後方互換が担保されている（差分は無関係な CSS プロパティの
+型定義など）。
+
+`display.sm` 具体規則も両側で同一:
+
+```
+.textStyle_display,.textStyle_display\.sm {
+  font-family: var(--fonts-display);
+  font-weight: var(--font-weights-semibold);
+  line-height: var(--line-heights-display-snug);
+  letter-spacing: var(--letter-spacings-display);
+  color: var(--colors-fg-strong);
+}
+.textStyle_display\.sm {
+  font-size: 3.5rem;
+}
+```
+
+### Gate results
+
+- `npm run lint` — PASS (`Checked 36 files, no fixes applied`)。
+- `npm run typecheck` — PASS (`tsc --noEmit`、エラー無し)。
+- `npm run test` — PASS (`Test Files 4 passed, Tests 38 passed`、152ms)。
+- `npm run build` — PASS (Next.js 16.2.10、`Compiled successfully in 2.7s`、9 static pages
+  generated: `/`, `/_not-found`, `/medo/account-deletion`, `/medo/privacy`, `/medo/terms`, `/sarae`,
+  `/stash`, `/tokushoho`)。
+- `npm run deploy:dry-run` — PASS (wrangler 4.110.0、`Read 496 files from the assets directory`、
+  bindings 無し)。
+- `./scripts/check-docs.sh` — PASS (全 PASS。pre-existing WARN `_docs/qa/Site/first-view-light-shader/test-plan.md`
+  の deferred Test Matrix reason 欠落は本 task 範囲外)。
+
+### Shader freeze guard
+
+`public/first-view/light.frag` SHA-256 =
+`19c1a1279209ecc1946378b9fe39a09bd0cdb26de39f82d4c9bf7b824ce463f8` 不変。本 task は package pin と
+docs のみに触れ、shader / height map / engine / policy には一切影響しない。
+
+### Verdict
+
+- **@otibo/ui publish 依存: RESOLVED.** hand-swapped dist に頼っていた κ 統合 (DEC-013) と
+  `display.sm` 描画は、registry から取得した 0.5.0 dist で再現され、gate 全通。prior verification
+  entries が抱えていた「hand-swapped dist で走っている」残件は本 entry で解消。
+- **Verdict remains PARTIAL.** step 5 の残件は AC-008 final approval と、owner による最終 deploy
+  判断のみに絞られた。
