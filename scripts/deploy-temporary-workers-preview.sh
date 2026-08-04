@@ -49,7 +49,13 @@ for command_name in date file find curl rsync npm; do
   fi
 done
 
-STAGE_DIR="$(mktemp -d /tmp/otibo-temporary-workers-preview-XXXXXX)"
+# /tmp は tmpfs で stage が数 GB 消費すると ENOSPC。通常 storage に置く。
+# 別 host 移植時は OTIBO_PREVIEW_STAGE_ROOT で override 可。
+STAGE_ROOT="${OTIBO_PREVIEW_STAGE_ROOT:-/mnt/ct1/otibo-preview-staging}"
+mkdir -p "$STAGE_ROOT"
+STAGE_DIR="$(mktemp -d "$STAGE_ROOT/otibo-temporary-workers-preview-XXXXXX")"
+# Success 時のみ evidence 削除 (failure 時は debug のため保持)。
+trap 'rc=$?; if [[ $rc -eq 0 && -n "${STAGE_DIR:-}" && -d "$STAGE_DIR" ]]; then rm -rf "$STAGE_DIR"; fi; exit $rc' EXIT
 SOURCE_DIR="$STAGE_DIR/source"
 ASSETS_DIR="$STAGE_DIR/assets"
 CONFIG_PATH="$STAGE_DIR/wrangler.temporary.jsonc"
@@ -195,7 +201,8 @@ if [[ "$MODE" == "prepare" ]]; then
   exit 0
 fi
 
-STATE_DIR="${XDG_RUNTIME_DIR:-/tmp}/otibo-temporary-workers-preview-state"
+# temp account state は persistent disk へ (tmpfs だと reboot で消え再生成発生)。
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/otibo-temporary-workers-preview-state"
 mkdir -p "$STATE_DIR/home" "$STATE_DIR/config"
 
 # intent: DEC-002 (Workflow/temporary-workers-preview-skill) — preview deployment must not mutate the user's permanent login.
