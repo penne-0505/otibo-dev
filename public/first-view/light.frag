@@ -341,10 +341,15 @@ void main() {
   float incidence = smoothstep(0.0, 1.0, u_scroll_progress);
   float center = beamCenter(uv);
   float d = uv.y - center;
-  float edgeNoise = fbm(vec2(uv.x * 5.9, 4.8));
+  // intent-invariant: edge noise 系 fbm は aspect-corrected p.x で入力する
+  // (uv.x 直接では portrait aspect で cycle 間隔が physical distance に対し
+  // 圧縮され、狭い transition と合成して beam edge が階段状に見える)。
+  // reference aspect で除して landscape の見た目を基準化する。
+  const float LANDSCAPE_REFERENCE_ASPECT = 1.78;
+  float edgeNoise = fbm(vec2(p.x * (5.9 / LANDSCAPE_REFERENCE_ASPECT), 4.8));
   float fineEdge = fbm(p * 9.5);
   float upperEdge = 0.112 + (edgeNoise - 0.5) * 0.026 + (fineEdge - 0.5) * 0.010;
-  float lowerEdge = -0.430 + (fbm(vec2(uv.x * 2.1, 13.0)) - 0.5) * 0.040;
+  float lowerEdge = -0.430 + (fbm(vec2(p.x * (2.1 / LANDSCAPE_REFERENCE_ASPECT), 13.0)) - 0.5) * 0.040;
   upperEdge += incidence * 0.220;
   lowerEdge -= incidence * 0.130;
   float upperSoft = mix(0.010, 0.030, smoothstep(0.25, 0.70, edgeNoise)) + incidence * 0.050;

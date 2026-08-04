@@ -2,6 +2,9 @@
   position: relative;
   /* AC-012: the current 210svh interval provides the verified white-hold transition. */
   height: 210svh;
+  /* wrapper が透過だと mobile URL bar transition の隙間で body 白 bg が
+   * peek する。FV shader base と同色にして視覚的に連続させる。 */
+  background: #102029;
 }
 
 .firstViewScroll > section {

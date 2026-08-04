@@ -6,7 +6,7 @@ qa_status: partial
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-10
-updated_at: 2026-07-28
+updated_at: 2026-08-04
 references:
   - "_docs/qa/Site/first-view-light-shader/test-plan.md"
   - "_docs/intent/Site/first-view-light-shader/decision.md"
@@ -1831,4 +1831,103 @@ docs-driven template v1.2.0でTest Matrix statusのenumが厳格化され、AC-0
 - shader source、height map、engine、policyは今回のセッションで変更していない。docsのみの変更である。
 - **Scoped verdict: PARTIAL — checkpoint 69 accepted as the production provisional baseline and frozen.**
   AC-038は意図的にdeferred、mobile目視は下流QAへ送るため、全体verdictはPARTIALのままとする。
+
+## Mobile portrait real-device verification — 2026-08-03/04
+
+### Test surface
+
+Pixel 7a (Android、標準Chrome、改造なし)。Temporary Workers preview (`otibo-*.workers.dev`) 経由で
+実機表示を owner が直接確認した。desktop 側ではこれまで検出できなかった portrait aspect 固有の
+視認性問題が 3 つ発現した。emulator (`390x844`) では URL bar の物理的な collapse や OLED tone
+reproduction、実 physical DPR (Pixel 7a: 2.625) が再現されず、下記のいずれも過去 QA では
+noticed されていなかった。
+
+### Findings
+
+**F1: white band peek at first scroll.** initial scroll で viewport 下端に白帯 (次 section
+Principle の surface bg) が瞬間的に peek する。上 scroll で消える。root cause は `.firstView`
+の `min-height: 100svh` が URL bar visible 想定の smallest viewport height を使っていたこと。
+mobile browser で scroll によって URL bar が collapse すると実 viewport が拡大するが、svh 側は
+不変のため FV bottom < viewport bottom となり、`.firstViewScroll` wrapper 透過部から `main`
+の白 bg が漏れた。
+
+**F2: wordmark hidden below fold.** F1 の一次修正で `100dvh` に切り替えたが、iOS Safari の
+URL bar collapse animation 中に dvh の repaint が数 frame 遅延する既知挙動があり同じ隙間が
+transient に再発した。`100lvh` (常に最大 viewport) で覆う対処へ変更したが、これに伴い FV
+実 bottom が viewport 下端より下 (差 = URL bar 高さ) となり wordmark が fold 下に隠れる副作用が
+生じた。
+
+**F3: beam edge sawtooth on portrait.** beam 上端の transition 帯 (dark teal → light band) に
+明確なノコギリ状の horizontal step が出現。desktop `1280x720` および過去の emulator
+`390x844` では未観測。DPR clamp 引き上げ (`2 → 3`)、8-bit RGB banding 対策の TPDF dither
+(peak-to-peak 2/255)、sampler2D の `highp` 明示、いずれも視覚に変化なし。cache-bust URL
+(`otibo-cachebust-a1`) を挟んで browser cache も除外した。
+
+### Root cause analysis
+
+shader を minimal-only 版に置換した diagnostic (`otibo-diag-min3`) で純粋な smoothstep
+diagonal gradient を出力したところ portrait でも完全に smooth に描画された。canvas / display
+pipeline は無罪であり、原因は shader の compose logic 内にあることが確定した。
+
+犯人は `edgeNoise = fbm(vec2(uv.x * 5.9, 4.8))` および `lowerEdge` inner の
+`fbm(vec2(uv.x * 2.1, 13.0))`。両者は `uv.x` (viewport-normalized [0,1]) を直接使うため、
+viewport 幅に対して常に一定 cycle 数 (5.9 / 2.1) の noise を撒く。landscape 16:9 (1920px 幅)
+では 5.9 cycles が 1920px に分布し 1 cycle ≈ 325px、beam 端の狭い `upperSoft` transition
+(viewport の 1〜3% ≈ 15〜30px) と重ねても gradient として滑らかに描画される。portrait
+mobile (390px 幅) では同じ 5.9 cycles が 390px に圧縮され 1 cycle ≈ 66px となり、`upperSoft`
+transition 幅と近い spatial 周期のため boundary が短い horizontal segment の連鎖として
+render された。同じ file 内の `fineEdge = fbm(p * 9.5)` は既に aspect-corrected `p` を
+使っており portrait / landscape で相対 scale が保たれる。edge noise だけが aspect
+non-corrected という grammar 内の non-uniformity だった。
+
+DPR 変更・dither・sampler precision がいずれも無効だった観察は、artifact が 8-bit
+quantization ではなく shader intrinsic な geometric under-resolution であることの
+disconfirming evidence として一貫している。
+
+### Fixes applied
+
+- `app/_components/first-view/first-view.module.css`: `min-height: 100svh` → `100lvh`。
+- `app/_components/first-view/first-view.module.css`: `.wordmark` の `bottom` を
+  `calc(100lvh - 100dvh + clamp(...))` に変更。desktop / URL bar collapsed では差 0 で
+  現行 offset のまま、mobile URL bar visible では URL bar 高さ分繰り上げて effective
+  viewport bottom 基準に置き直す。
+- `app/page.module.css`: `.firstViewScroll` に `background: #102029` を defensive に追加。
+  URL bar transition の一瞬で FV が viewport を覆いきれない場合でも、隙間から白ではなく
+  shader base 色 (`#102029` = FV bg と同色) が見えるように fail-safe を敷いた。
+- `public/first-view/light.frag`: `edgeNoise` と `lowerEdge` inner fbm を
+  aspect-corrected `p.x` へ切り替え、`LANDSCAPE_REFERENCE_ASPECT = 1.78` で除算して
+  landscape 16:9 の見た目を保つよう frequency を換算 (`p.x * (5.9 / 1.78)` および
+  `p.x * (2.1 / 1.78)`)。`fineEdge` の pattern (aspect-corrected `p` 使用) と一貫する。
+  portrait mobile で 5.9 → 1.4 cycles 相当まで低下し sawtooth が解消。
+
+### Verification (2026-08-04)
+
+Pixel 7a 実機 (`https://otibo-edgefix-a.busy-gum.workers.dev`) で確認:
+
+- F1 白帯 peek: 解消。initial scroll で下端に白が漏れず、`.firstViewScroll` 底部から次 section
+  Principle bg への遷移まで連続。
+- F2 wordmark 可視性: 初期表示から visible。URL bar collapse に追従して位置が smooth に
+  更新される (bottom が `100lvh - 100dvh` 減衰)。
+- F3 beam edge sawtooth: 消失。beam edge は smooth な wavy edge として描画され、
+  physical wave スケールが desktop と同等になった。
+
+### Residual
+
+- Portrait mobile で beam 明部の中に subtle な vertical 縦線が残る。原因の一次候補は
+  height map (fabric 系 canonical surface) の material sampling が portrait aspect で
+  横方向に圧縮されて縦方向 grain が相対的に目立つこと。edgeNoise と同じ手法 (aspect
+  normalize) を material sampling に及ぼす拡張は次回検討。今回は素材感の一部として容認。
+- desktop 側の visual regression 確認は本セッションでは agent 実行なし。owner による
+  browser QA、または後続 session で `1280x720` / `1920x1080` の初期像を再確認する。
+- 本セッションは QA test-plan を事前作成せず、実機観察をきっかけとする reactive
+  investigation として進行した。intent / AC 系への影響なし (edge noise の aspect
+  normalization は既存 `fineEdge` pattern と grammar 上一致するため新規 DEC 不要)。
+
+### Closure
+
+- Residual gap (verification.md 元の): "mobile 390x844の構図、scroll中間 / exit washの
+  目視は、今回のdesktop受理では取得していない" — 本セッションで portrait 実機の初期像確認
+  済み、ただし scroll 中間 / exit wash 全域は未追跡。
+- AC-039 (visual causality on mobile): F3 fix により portrait でも beam edge が実在光として
+  読める状態へ復帰。ただし verdict の全体更新は scroll 全域 QA を含めた次回に持ち越す。
 

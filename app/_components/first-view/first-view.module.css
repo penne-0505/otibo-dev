@@ -4,7 +4,9 @@
 
   position: relative;
   width: 100%;
-  min-height: 100svh;
+  /* intent-invariant: 常に lvh 分覆う (dvh 系だと mobile URL bar transition の
+   * repaint 遅延で下段が peek する)。wordmark 側で (lvh - dvh) を差引補正。 */
+  min-height: 100lvh;
   overflow: hidden;
   isolation: isolate;
   background: #102029;
@@ -51,12 +53,14 @@
   position: absolute;
   z-index: 2;
   right: clamp(var(--spacing-6), 4vw, var(--spacing-16));
-  bottom: clamp(var(--spacing-6), 4vw, var(--spacing-16));
+  /* FV 実 bottom (100lvh) と effective viewport bottom (100dvh) の差を offset に
+   * 加算し、URL bar visible 状態でも fold 下に隠れないようにする。 */
+  bottom: calc(100lvh - 100dvh + clamp(var(--spacing-6), 4vw, var(--spacing-16)));
   margin: 0;
   color: var(--first-view-wordmark);
   font-family: var(--fonts-display);
   font-size: clamp(var(--font-sizes-lg), 2.25vw, var(--font-sizes-3xl));
-  font-weight: 400;
+  font-weight: var(--font-weights-semibold);
   line-height: var(--line-heights-display);
   letter-spacing: var(--letter-spacings-wider);
   text-transform: lowercase;
