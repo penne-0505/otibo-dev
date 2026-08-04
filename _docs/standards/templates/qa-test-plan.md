@@ -4,7 +4,7 @@ status: active
 draft_status: n/a
 qa_status: planned
 risk: Medium
-qa_schema: 2
+qa_schema: 3
 created_at: YYYY-MM-DD
 updated_at: YYYY-MM-DD
 references:

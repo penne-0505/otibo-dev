@@ -46,10 +46,13 @@ const QA_INVALID = [
   "_evals/validator-fixtures/qa/invalid/verification-in-progress-status.md",
   "_evals/validator-fixtures/qa/invalid/verification-missing-test-plan-reference.md",
   "_evals/validator-fixtures/qa/invalid/qa-archive-path.md",
+  "_evals/validator-fixtures/qa/invalid/v3-missing-transferable-principles.md",
+  "_evals/validator-fixtures/qa/invalid/v3-bare-none-transferable-principles.md",
 ] as const;
 const FRONTMATTER_VALID = [
   "_evals/validator-fixtures/frontmatter/valid/intent-schema.md",
   "_evals/validator-fixtures/frontmatter/valid/qa-schema.md",
+  "_evals/validator-fixtures/frontmatter/valid/qa-schema-v3.md",
 ] as const;
 const FRONTMATTER_INVALID = [
   "_evals/validator-fixtures/frontmatter/invalid/duplicate-field.md",

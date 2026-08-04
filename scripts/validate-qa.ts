@@ -62,7 +62,11 @@ const TODO_FILE = (() => {
     return "TODO.md";
   }
 })();
-const QA_SCHEMA = 2;
+const QA_SCHEMAS = [2, 3] as const;
+// qa_schema 3 = 2 + verification の Transferable Principles (session-end reflection)
+const REFLECTION_SCHEMA = 3;
+const isWhyFirstSchema = (value: YamlValue | undefined): boolean =>
+  QA_SCHEMAS.some((schema) => schema === value);
 const RISKS = ["Low", "Medium", "High", "Critical"] as const;
 const QA_STATUS_VALUES = [
   "planned",
@@ -314,8 +318,8 @@ const validateFrontMatter = (
       add(errors, file, `missing front matter field: ${key}`);
     }
   }
-  if ("qa_schema" in attrs && attrs.qa_schema !== QA_SCHEMA) {
-    add(errors, file, `qa_schema must be ${QA_SCHEMA}`);
+  if ("qa_schema" in attrs && !isWhyFirstSchema(attrs.qa_schema)) {
+    add(errors, file, `qa_schema must be one of ${QA_SCHEMAS.join(", ")}`);
   }
   if (
     typeof attrs.qa_status === "string" &&
@@ -387,7 +391,7 @@ const validateTestPlan = async ({
   errors,
   warnings,
 }: ValidateTestPlanParams): Promise<void> => {
-  const usesWhyFirstSchema = attrs.qa_schema === QA_SCHEMA;
+  const usesWhyFirstSchema = isWhyFirstSchema(attrs.qa_schema);
 
   if (
     typeof attrs.qa_status === "string" &&
@@ -496,6 +500,38 @@ const isExplicitNone = (content: string): boolean => {
   return /^(?:[-*]\s*)?(None|N\/A|なし)$/i.test(cleaned);
 };
 
+// session-end reflection の証跡は candidate か理由付き None のみ受理する。
+// 裸の None を弾くのは「無言の skip」と「検討したが無かった」を構造で区別するため。
+// 中身の質は判定しない (user review の領分)。
+const validateTransferablePrinciples = (
+  file: string,
+  src: string,
+  errors: ValidationItem[],
+): void => {
+  const content = sectionContent(src, "Transferable Principles");
+  if (content === null) {
+    add(errors, file, "missing heading: Transferable Principles");
+    return;
+  }
+  const lines = stripCodeBlocks(content)
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+  const isBareNone = (line: string): boolean =>
+    /^(?:[-*]\s*)?(None|N\/A|なし)[.。]?$/i.test(line);
+  const hasCandidate = lines.some(
+    (line) => /^[-*]\s+\S/.test(line) && !isBareNone(line),
+  );
+  const hasReasonedNone = lines.some((line) => /^None:\s*\S/i.test(line));
+  if (hasCandidate || hasReasonedNone) return;
+  add(
+    errors,
+    file,
+    'Transferable Principles must record candidates ("- TP: ...") or an explicit "None: <reason>"',
+  );
+};
+
 const validateVerification = ({
   file,
   src,
@@ -504,7 +540,7 @@ const validateVerification = ({
   slug,
   errors,
 }: ValidateVerificationParams): void => {
-  const usesWhyFirstSchema = attrs.qa_schema === QA_SCHEMA;
+  const usesWhyFirstSchema = isWhyFirstSchema(attrs.qa_schema);
   const requiredHeadings = [
     "Summary",
     "Verification Verdict",
@@ -616,6 +652,10 @@ const validateVerification = ({
       file,
       "Commands Run or Manual QA Results must contain substantive evidence",
     );
+  }
+
+  if (attrs.qa_schema === REFLECTION_SCHEMA) {
+    validateTransferablePrinciples(file, src, errors);
   }
 };
 

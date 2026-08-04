@@ -84,7 +84,7 @@ When creating Plan / Intent for `Size >= M` or `Risk >= Medium`, also run `qa-pr
 _docs/qa/<Area>/<slug>/test-plan.md
 ```
 
-New QA documents use `qa_schema: 2`, review affected `DEC-*` entries, and may
+New QA documents use `qa_schema: 3`, review affected `DEC-*` entries, and may
 record `None` when the Intent defines no invariant.
 
 Ensure QA references root-relative canonical paths.

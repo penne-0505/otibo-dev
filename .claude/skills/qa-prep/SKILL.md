@@ -45,7 +45,7 @@ Use this skill for:
 
 The QA test plan must include:
 
-- `qa_schema: 2`
+- `qa_schema: 3`
 - Source of Intent
 - Decision Review Scope with affected `DEC-*` IDs
 - Quality Goal

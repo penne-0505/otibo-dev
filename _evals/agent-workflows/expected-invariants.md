@@ -53,3 +53,6 @@
 - Validator fixtures must include both valid and intentionally invalid examples.
 - New intent records use `intent_schema: 2`, stable `DEC-*` IDs, and causal `Why`.
 - `INV-*` is optional and must not freeze a current mechanism or arbitrary value.
+- New verification documents use `qa_schema: 3` and record Transferable
+  Principles candidates or an explicit reasoned `None:`; a blank section or bare
+  `None` is not acceptable, and promotion to intent is the user's decision.

@@ -58,7 +58,14 @@ const templateLockExample = await json("docs-template.lock.example.json") as {
 };
 const intentTemplate = await read("_docs/standards/templates/intent.md");
 const qaTemplate = await read("_docs/standards/templates/qa-test-plan.md");
+const qaVerificationTemplate = await read(
+  "_docs/standards/templates/qa-verification.md",
+);
 const qualityStandard = await read("_docs/standards/quality_assurance.md");
+const agentsPostImplementation = await read(
+  ".agents/skills/post-implementation/SKILL.md",
+);
+const agentsQaReview = await read(".agents/skills/qa-review/SKILL.md");
 const whyFirstSkills = [
   "implementation-prep",
   "docs-prep",
@@ -176,10 +183,10 @@ assert(
   templateLockExample.schema === 1 &&
     templateLockExample.source ===
       "https://github.com/penne-0505/docs_driven_dev_template.git" &&
-    templateLockExample.revision?.tag === "v1.2.0" &&
+    templateLockExample.revision?.tag === "v1.3.0" &&
     templateLockExample.revision?.commit ===
       "REPLACE_WITH_THE_TAGS_FULL_40_CHARACTER_COMMIT_SHA",
-  "template lock example identifies the v1.2.0 release and full-SHA placeholder",
+  "template lock example identifies the v1.3.0 release and full-SHA placeholder",
 );
 
 assert(
@@ -234,12 +241,33 @@ assert(
 assert(
   contains(
     qaTemplate,
-    "qa_schema: 2",
+    "qa_schema: 3",
     "## Decision Review Scope",
     "## Intent-derived Invariants",
     "None",
   ),
   "QA template reviews DEC records and permits zero invariants",
+);
+
+assert(
+  contains(
+    qaVerificationTemplate,
+    "qa_schema: 3",
+    "## Transferable Principles",
+    "None:",
+  ),
+  "QA verification template carries the session-end reflection contract",
+);
+
+assert(
+  contains(
+    agentsPostImplementation,
+    "Session-End Reflection",
+    "Transferable Principles",
+    "None: <",
+  ) &&
+    contains(agentsQaReview, "Transferable Principles", "None: <reason>"),
+  "post-implementation and qa-review inline the transferable principle reflection",
 );
 
 assert(

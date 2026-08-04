@@ -17,9 +17,12 @@ This skill determines whether implementation can be considered complete.
 6. Check whether AC, affected DEC rationale, and applicable INV are satisfied.
 7. Run or confirm tests, validators, and manual QA.
 8. Create or update `_docs/qa/<Area>/<slug>/verification.md`.
-9. Set verification verdict to `PASS`, `PARTIAL`, `FAIL`, or `BLOCKED`.
-10. Update the TODO task's `Verification:` field.
-11. Decide whether the task can be completed.
+9. Fill `Transferable Principles`: ask whether any decision in this session
+   carries a learning that outlives the session. Record 1-3 line candidates for
+   intent promotion, or an explicit `None: <reason>`. Never leave it blank.
+10. Set verification verdict to `PASS`, `PARTIAL`, `FAIL`, or `BLOCKED`.
+11. Update the TODO task's `Verification:` field.
+12. Decide whether the task can be completed.
 
 ## Completion Decision
 
@@ -35,7 +38,12 @@ This skill determines whether implementation can be considered complete.
 - Do not mark PASS just because tests passed.
 - Confirm the implementation still serves each affected DEC's `Why`, and stays within its `Change freedom`.
 - Confirm each applicable intent-derived invariant is preserved; `None` is a valid invariant set.
-- New verification documents use `qa_schema: 2` and include Decision Conformance.
+- New verification documents use `qa_schema: 3` and include Decision Conformance
+  and Transferable Principles.
+- "The fix matches an existing pattern" does not justify skipping the
+  Transferable Principles reflection; a bare `None` is not acceptable evidence.
+- Candidates are presented for user review. Do not promote a candidate to intent
+  without the user's decision.
 - Confirm documented intentional omissions are still visible and have not been "fixed" away without updating Intent / QA.
 - Do not list commands as run unless they were actually run.
 - Do not leave residual risks vague.

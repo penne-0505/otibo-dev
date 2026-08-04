@@ -78,6 +78,19 @@ references:
    - feature や判断が obsolete になった場合は、`status: obsolete` または `status: superseded` にする。
    - QA docs はテストコードの置き場ではない。実行可能なテストはコードベース側の標準的な場所に置く。
 
+5. **Transferable principle の昇格 (session-end reflection)**
+   - `post-implementation` / `qa-review` は、セッション終了前に「このセッション限りではない学び
+     (transferable principle) があるか」を必ず確認し、candidate または理由付きの `None:` を残す。
+     `verification.md` がある場合は `Transferable Principles` section へ記録する (`qa_schema: 3` で
+     必須)。verification を作らない Fast Track では final summary / PR に残す。
+   - 昇格判断は user が行う。採用なら intent の DEC へ再構成し、却下なら verification に却下理由を
+     追記して残し、保留なら candidate のまま verification に残す。
+   - 昇格先: 単一 feature に紐づく学びは当該 `_docs/intent/<Area>/<slug>/decision.md` へ。特定
+     feature に閉じない cross-cutting な原則は `_docs/intent/<Area>/conventions/decision.md` に
+     DEC を追記して集約する。複数 Area に跨る場合は最も責任の近い Area の `conventions` に置き、
+     他の intent / qa からは `references` で参照する。
+   - 昇格した DEC には、昇格元 verification への参照を `references` に残す (provenance)。
+
 ## 一時ドキュメントのアーカイブルール
 
 - `draft`、`plan`、`survey` は「開発過程専用の一時ドキュメント」であり、対応する `intent` を作成していない状態でのアーカイブを禁止する。
@@ -164,12 +177,16 @@ references:
 
 新しい why-first schema を使う文書は、次の marker を持つ。marker のない既存文書は legacy schema として
 引き続き受理し、一斉移行を要求しない。既存文書のリンク・typo・metadata 修正だけなら marker は不要だが、
-decision の意味または QA 契約を追加・変更する場合は対応する schema v2 へ移行する。
+decision の意味または QA 契約を追加・変更する場合は最新 schema へ移行する。
 
-| 対象 | フィールド | 値 |
+| 対象 | フィールド | 値 (新規作成時) |
 | --- | --- | --- |
 | `_docs/intent/**/*.md` | `intent_schema` | `2` |
-| `_docs/qa/**/*.md` | `qa_schema` | `2` |
+| `_docs/qa/**/*.md` | `qa_schema` | `3` |
+
+`qa_schema: 3` は `2` の全要件に加えて、verification に `Transferable Principles`
+(session-end reflection の candidate、または理由付き `None:`) を必須にする。test-plan の要件は
+`2` と同じ。既存の `qa_schema: 2` 文書は引き続き受理し、一斉移行を要求しない。
 
 draft の stale 管理向け任意フィールド:
 
@@ -243,6 +260,7 @@ draft の stale 管理向け任意フィールド:
 ## Deferred / Not Covered
 ## Residual Risks
 ## Follow-up TODOs
+## Transferable Principles
 ```
 
 ## Template revision provenance

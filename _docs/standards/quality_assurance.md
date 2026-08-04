@@ -144,6 +144,48 @@ grep 可能な接頭辞を用いる。
 - Intent-derived Invariants は任意で、親 `DEC-xxx` を明示する。
 - 任意で、DEC / INV がどこで体現・enforce されているかを示す back-reference を intent に残してよい。
 
+## transferable principle と session-end reflection
+
+fix の説明 (what) を書くことと、fix から一般化できる原則 (transferable principle) を抽出して
+intent へ昇格することは、agent の内発的な動機では前者しか起きない。「既存 pattern と一致する
+から新規 intent は不要」という inline の正当化で昇格が skip されるのを防ぐため、セッション
+終了時の reflection を workflow の必須 step とする。
+
+- `post-implementation` / `qa-review` は、final summary の前に「このセッションで『これはなぜ』
+  と立ち止まった判断はあったか。その『なぜ』は 1 セッション限りの説明で閉じるか」を確認する。
+- 閉じないなら candidate として 1–3 行で書き出す。intent への昇格判断は user が行う。agent は
+  candidate を提示するに留め、勝手に昇格させない。
+- 無い場合は `None: <理由>` を明示する。空欄と裸の `None` を残さない。理由付きの None は
+  「検討したが無かった」の証跡であり、無言の skip と構造的に区別できる。
+- 記録先は `_docs/qa/<Area>/<slug>/verification.md` の `Transferable Principles` section
+  (`qa_schema: 3` で必須)。verification を作らない Fast Track では final summary / PR に残す。
+- validator は presence (candidate または理由付き None) だけを検証する。内容の質は user review
+  で判断する。品質を機械強制すると compliance 的な形骸化を生む (intent ↔ code traceability の
+  強制レベルと同じ理由)。
+- 昇格先はドキュメント運用標準の昇格ルールに従う。単一 feature に紐づく学びは当該 slug の
+  intent へ、特定 feature に閉じない cross-cutting な原則は
+  `_docs/intent/<Area>/conventions/decision.md` に DEC として集約する。
+
+記入例 (candidate):
+
+```text
+- TP: 同一 file 内で同じ役割を担う処理は、同じ座標系・同じ表現手段で書く。表現の混在は
+  単一 context の QA では検出できない grammar violation として dormant し、別の context
+  (platform / aspect / locale) に晒されて初めて症状化する。
+  (契機: portrait 限定の描画バグの根因が、同役割の 2 つの noise の座標系不一致だった /
+  昇格先候補: _docs/intent/Site/conventions/decision.md)
+```
+
+記入例 (none):
+
+```text
+None: 既存 validator pattern の踏襲による fixture 追加のみで、新しい判断を要する分岐が
+なかった。既存 DEC の適用で説明が閉じる。
+```
+
+candidate の粒度は「別の file・別の機能で同じ判断に出会った将来の agent が、この記述だけで
+同じ結論に到達できるか」で測る。現在値の言い換えや作業ログは candidate にしない。
+
 ## test matrix
 
 test matrix は最低限、以下の列を持つ。

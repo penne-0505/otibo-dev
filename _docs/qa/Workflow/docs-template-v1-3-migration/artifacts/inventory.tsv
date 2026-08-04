@@ -1,0 +1,66 @@
+source	path	upstream_delta	project_relation	resolution	status	rationale
+inherited	_docs/qa/Workflow/docs-template-v1-2-migration/artifacts/inventory.tsv	unchanged	prior-reviewed-union	keep	retained	259 prior B/U/P rows remain the baseline for paths unchanged after v1.2 adoption
+upstream-v1.3	_docs/documentation_guide.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_docs/standards/documentation_operations.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_docs/standards/quality_assurance.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_docs/standards/templates/qa-test-plan.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_docs/standards/templates/qa-verification.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_evals/agent-workflows/README.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_evals/agent-workflows/cases/transferable-principle-skip.md	added	upstream-owned-unmodified	apply	applied	New consumer contract path
+upstream-v1.3	_evals/agent-workflows/expected-invariants.md	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	_evals/validator-fixtures/frontmatter/valid/qa-schema-v3.md	added	upstream-owned-unmodified	apply	applied	New consumer contract path
+upstream-v1.3	_evals/validator-fixtures/qa/invalid/v3-bare-none-transferable-principles.md	added	upstream-owned-unmodified	apply	applied	New consumer contract path
+upstream-v1.3	_evals/validator-fixtures/qa/invalid/v3-missing-transferable-principles.md	added	upstream-owned-unmodified	apply	applied	New consumer contract path
+upstream-v1.3	_evals/validator-fixtures/qa/valid/verification-v3-none-with-reason.md	added	upstream-owned-unmodified	apply	applied	New consumer contract path
+upstream-v1.3	_evals/validator-fixtures/qa/valid/verification-v3-transferable-principles.md	added	upstream-owned-unmodified	apply	applied	New consumer contract path
+upstream-v1.3	docs-template.lock.example.json	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	scripts/test-agent-workflow-smoke.ts	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	scripts/test-validators.ts	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	scripts/validate-frontmatter.ts	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	scripts/validate-qa.ts	modified	upstream-owned-unmodified	apply	applied	Local hash equals v1.2.0
+upstream-v1.3	.agents/skills/docs-prep/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.agents/skills/post-implementation/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.agents/skills/qa-prep/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.agents/skills/qa-review/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.claude/skills/docs-prep/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.claude/skills/post-implementation/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.claude/skills/qa-prep/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+upstream-v1.3	.claude/skills/qa-review/SKILL.md	modified	upstream-owned-unmodified	apply	applied	Mapped from starter and local hash equals v1.2.0
+project-post-v1.2	.claude/launch.json	unchanged	project-only	keep	retained	Project runtime launch customization
+project-post-v1.2	.gitignore	unchanged	project-only	keep	retained	Project ignore policy
+project-post-v1.2	TODO.md	unchanged	customized-shared	merge	migration-adjusted	Add and later complete Workflow-Chore-25 without replacing project tasks
+project-post-v1.2	_docs/draft/Site/first-view-light-shader-agent-handoff/notes.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/intent/Site/first-view-light-shader/decision.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/intent/Site/top-page-rebuild/decision.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/plan/Site/first-view-light-shader/plan.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/plan/Site/top-page-rebuild/plan.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/qa/Site/first-view-light-shader/test-plan.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/qa/Site/first-view-light-shader/verification.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/qa/Site/top-page-rebuild/test-plan.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	_docs/qa/Site/top-page-rebuild/verification.md	unchanged	project-only	keep	retained	Feature record outside migration
+project-post-v1.2	app/_components/top-page/TopPageContent.tsx	unchanged	project-only	keep	retained	Application code outside migration
+project-post-v1.2	app/_components/top-page/top-page.module.css	unchanged	project-only	keep	retained	Application code outside migration
+project-post-v1.2	biome.json	unchanged	project-only	keep	retained	Project tooling outside migration
+project-post-v1.2	package-lock.json	unchanged	project-only	keep	retained	Dependency state outside migration
+project-post-v1.2	package.json	unchanged	project-only	keep	retained	Dependency manifest outside migration
+project-post-v1.2	public/products/medo/ss-home.png	unchanged	project-only	keep	retained	Product asset outside migration
+project-post-v1.2	tsconfig.json	unchanged	project-only	keep	retained	Deno and app compiler boundary remains project-owned
+cutoff-dirty	.claude/launch.json	unchanged	project-only	keep	excluded-from-candidate	Active unstaged content preserved by hash
+cutoff-dirty	_docs/qa/Site/first-view-light-shader/verification.md	unchanged	project-only	keep	excluded-from-candidate	Active unstaged feature record preserved by hash
+cutoff-dirty	app/_components/first-view/first-view.module.css	unchanged	project-only	keep	excluded-from-candidate	Active unstaged application code preserved by hash
+cutoff-dirty	app/_components/top-page/TopPageContent.tsx	unchanged	project-only	keep	excluded-from-candidate	Active unstaged application code preserved by hash
+cutoff-dirty	app/_components/top-page/top-page.module.css	unchanged	project-only	keep	excluded-from-candidate	Active unstaged application code preserved by hash
+cutoff-dirty	app/page.module.css	unchanged	project-only	keep	excluded-from-candidate	Active unstaged application code preserved by hash
+cutoff-dirty	public/first-view/light.frag	unchanged	project-only	keep	excluded-from-candidate	Active unstaged shader preserved by hash
+cutoff-dirty	_docs/draft/Workflow/docs-driven-dev-improvement-request/proposal.md	unchanged	project-only	keep	excluded-from-candidate	Active untracked proposal preserved by hash
+cutoff-dirty	public/authors/penne.png	unchanged	project-only	keep	excluded-from-candidate	Active untracked asset preserved by hash
+cutoff-dirty	public/products/medo/logo.png	unchanged	project-only	keep	excluded-from-candidate	Active untracked asset preserved by hash
+cutoff-dirty	public/products/sarae/logo.png	unchanged	project-only	keep	excluded-from-candidate	Active untracked asset preserved by hash
+cutoff-dirty	public/products/stash/logo.png	unchanged	project-only	keep	excluded-from-candidate	Active untracked asset preserved by hash
+cutoff-dirty	worktrees/first-view-shader/	unchanged	project-only	keep	excluded-from-candidate	Concurrent worktree preserved as separate lane
+migration-created	_docs/archives/plan/Workflow/docs-template-v1-3-migration/plan.md	added	project-only	apply	applied	Required High-risk migration plan archived after Intent and verification absorbed its contract
+migration-created	_docs/intent/Workflow/docs-template-v1-3-migration/decision.md	added	project-only	apply	applied	Required migration decisions
+migration-created	_docs/qa/Workflow/docs-template-v1-3-migration/test-plan.md	added	project-only	apply	applied	Required migration QA plan
+migration-created	_docs/qa/Workflow/docs-template-v1-3-migration/verification.md	added	project-only	apply	applied	Required migration verification
+migration-created	_docs/qa/Workflow/docs-template-v1-3-migration/artifacts/inventory.tsv	added	project-only	apply	applied	Three-way inventory extension
+migration-created	docs-template.lock.json	unchanged	project-only	merge	reconciled	Advance only after compatibility PASS

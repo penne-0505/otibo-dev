@@ -380,13 +380,13 @@ const run = async (): Promise<void> => {
         fileErrors.push(`risk must be one of ${RISKS.join(", ")}`);
       }
     }
-    // schema marker は種別を跨がせず、値は整数 2 のみ受理する。
-    // 文字列 "2" や将来の版番号を黙って通すと、schema の意味が緩む。
+    // schema marker は種別を跨がせず、値は既知の整数版のみ受理する。
+    // 文字列 "2" や未知の版番号を黙って通すと、schema の意味が緩む。
     if ("qa_schema" in data) {
       if (!isQaPath(effectiveFile)) {
         fileErrors.push("qa_schema is allowed only on QA documents");
-      } else if (data.qa_schema !== 2) {
-        fileErrors.push("qa_schema must be integer 2 when provided");
+      } else if (data.qa_schema !== 2 && data.qa_schema !== 3) {
+        fileErrors.push("qa_schema must be integer 2 or 3 when provided");
       }
     }
     if ("intent_schema" in data) {

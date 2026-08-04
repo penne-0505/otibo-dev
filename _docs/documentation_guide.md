@@ -144,7 +144,7 @@ related_issues: []
 related_prs: []
 ```
 
-schema v2 の verification には、実行したコマンド、手動 QA、Acceptance Criteria Coverage、影響した DEC の Decision Conformance、該当する場合の Invariant Coverage、Deferred / Not Covered、Residual Risks、Follow-up TODOs、Verification Verdict を残します。
+schema v2 以降の verification には、実行したコマンド、手動 QA、Acceptance Criteria Coverage、影響した DEC の Decision Conformance、該当する場合の Invariant Coverage、Deferred / Not Covered、Residual Risks、Follow-up TODOs、Verification Verdict を残します。`qa_schema: 3` ではさらに Transferable Principles (このセッション限りではない学びの candidate、無い場合は理由付きの `None:`) を残します。昇格判断は user が行います。
 
 Verdict と `qa_status` は次の対応にします。
 
