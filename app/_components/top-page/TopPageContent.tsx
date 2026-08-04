@@ -54,9 +54,11 @@ export function TopPageContent() {
       <section className={styles.principle} aria-labelledby="principle-title">
         <div className={styles.principleInner}>
           <h2 className={textStyle("display.sm")} id="principle-title">
-            誰かのひと手間に、
-            <br className={styles.mobileBreak} />
-            ぴったりの道具を
+            <span className={styles.headingLine1}>
+              <span className={styles.headingLine1Text}>誰かのひと手間に</span>
+              <span className={styles.headingLine1Comma}>、</span>
+            </span>
+            <span className={styles.headingLine2}>ぴったりの道具を</span>
           </h2>
           <p className={textStyle("body")}>
             otiboは
@@ -72,7 +74,9 @@ export function TopPageContent() {
             <br />
             手間なく、自然にできるようにするための
             <br />
-            アプリケーションを作りたいと考えています。
+            アプリケーションを
+            <br className={styles.mobileBreak} />
+            作りたいと考えています。
           </p>
         </div>
       </section>

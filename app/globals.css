@@ -1,5 +1,20 @@
 @layer reset, base, tokens, recipes, utilities;
 
+/* Consumer-local signature bold: @otibo/ui DS は 400/500/600 のみ (bold 乱用
+ * 防止で意図的に非収録)。LP signature 用の scoped exception で weight 700 を
+ * overlay。使用箇所は `.principle h2` (mobile) のみ、他への drift 禁止。
+ * Asset は pyftsubset で Hiragana + CJK 句読点 + 使用 Kanji に限定、SIL OFL
+ * (`public/fonts/GenInterfaceJP-OFL.txt` に license 同梱)。 */
+@font-face {
+  font-family: "Gen Interface JP";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/GenInterfaceJP-signature-bold.woff2") format("woff2");
+  unicode-range: U+3000-303F, U+3040-309F, U+8AB0, U+624B, U+9593, U+9053,
+    U+5177;
+}
+
 @layer reset {
   *,
   *::before,

@@ -6,7 +6,7 @@ qa_status: partial
 risk: Medium
 qa_schema: 2
 created_at: 2026-07-11
-updated_at: 2026-07-31
+updated_at: 2026-08-05
 references:
   - "_docs/intent/Site/top-page-rebuild/decision.md"
   - "_docs/plan/Site/top-page-rebuild/plan.md"
@@ -1340,3 +1340,106 @@ docs のみに触れ、shader / height map / engine / policy には一切影響�
   entries が抱えていた「hand-swapped dist で走っている」残件は本 entry で解消。
 - **Verdict remains PARTIAL.** step 5 の残件は AC-008 final approval と、owner による最終 deploy
   判断のみに絞られた。
+
+## 2026-08-04/05 Mobile Principle typography 調整
+
+### Test surface
+
+Pixel 7a (Android 標準 Chrome、改造なし)。Temporary Workers preview 経由で実機表示を owner が
+順次確認しつつ iterative に調整した。desktop 承認済の Principle が portrait mobile では複数の
+typography 問題を露呈していた。
+
+### Findings と対処
+
+**F-T1: FV wordmark font-weight**
+`.wordmark` が commit 上 `font-weight: 400` (2026-07-07 `65ad5ce` から継続) で render → owner
+期待は semibold。原因は working tree の未 commit 変更を私が git checkout で破壊した session
+中の incident。`var(--font-weights-semibold)` へ復元。
+
+**F-T2: Principle heading の hierarchy 崩壊 (mobile)**
+Heading 幅 (2 行 wrap 各 ~250px) より本文が幅一杯に流れて hierarchy が inversion。
+`.principle p { max-width: 18em; margin-inline: auto }` で本文を heading 相当の narrow column に
+constrain。text-align: center は継承、`<br>` composition は owner intent を尊重して保持。
+
+**F-T3: Principle 余白過多 → 圧縮**
+Mobile portrait で `min-height: 47.5rem` + place-items: center で content 前後に大きな empty
+zone、`padding-block-start` desktop base 96px が "未完成っぽい" 印象。以下 mobile 圧縮:
+`min-height` 47.5→36rem、`padding-block-start` 96→48px、`principleInner gap` 32→16px、
+段落間 margin ~50% 圧縮。全て mobile query 内、desktop 無影響。
+
+**F-T4: Heading impact 不足 → 3 軸強化**
+Heading font-size は Products hierarchy 制約で xl (~31.5px) 上限 → size 以外で impact を稼ぐ:
+`line-height` 1.15→1.25 (2 行 wrap の呼吸)、`letter-spacing` 0→0.05em (tracking で apparent
+horizontal presence)、`font-weight` semibold(600)→bold(700)。
+
+**F-T5: Bold face の DS 未収録 → consumer-local signature primitive**
+@otibo/ui bundle は 400/500/600 のみ (bold 乱用防止で意図的に非収録)。owner 承認のもと LP
+signature 用の scoped exception として consumer 側で bold 700 face を overlay:
+
+- Asset: `public/fonts/GenInterfaceJP-signature-bold.woff2` (pyftsubset で Hiragana + CJK
+  句読点 + 使用 Kanji 5 に限定した ~20KB woff2)
+- License: SIL OFL、`public/fonts/GenInterfaceJP-OFL.txt` に同梱 (redistribution 要件)
+- CSS: `app/globals.css` に `@font-face` 追加、family 名を DS bundle と揃えて weight matching
+- Scope: `.principle h2` (mobile only) 限定、他 heading への drift は禁止 (両 CSS に comment)
+
+**F-T6: 見出しの line/comma composition**
+2 行 wrap の "、" が center 計算に含まれて視覚的に line 2 と center 不一致。h2 内部を span
+構造化 (`.headingLine1 { .headingLine1Text, .headingLine1Comma }`, `.headingLine2`)、mobile query
+で `.headingLine1Comma` を `position: absolute; left: 100%` にして 、を hanging punctuation
+化。line 1 の centering は headingLine1Text (、除いた 8 文字) の幅で計算され line 2 と main
+text の視覚 center が一致。
+
+**F-T7: 本文段落 2 の mobile 追加 break**
+Owner の break composition に、mobile portrait 用の追加 break "アプリケーションを / 作りたい
+と考えています。" を挿入。`<br className={styles.mobileBreak}>` (既存 heading 用 class を
+横展開)。desktop 側は当該 break 非表示。
+
+### 副次改善: temporary workers deploy script の /tmp 依存解消
+
+繰り返しの mobile preview deploy で `/tmp` (tmpfs 4GB) が数回で ENOSPC。
+`scripts/deploy-temporary-workers-preview.sh` の STAGE_DIR / STATE_DIR を通常 storage へ移送:
+
+- STAGE_DIR: `/tmp` → `/mnt/ct1/otibo-preview-staging` (81GB volume)。
+  `OTIBO_PREVIEW_STAGE_ROOT` env で override 可
+- STATE_DIR: `${XDG_RUNTIME_DIR:-/tmp}` → `${XDG_STATE_HOME:-$HOME/.local/state}` (persistent
+  disk へ、temp account 再利用が reboot 越しに成立)
+- Success 時 auto cleanup の trap 追加 (failure 時は evidence 保持で skill spec 意図遵守)
+
+### Verification (2026-08-05)
+
+Pixel 7a 実機で owner 承認済:
+- FV wordmark semibold render ✓
+- Principle heading が hierarchy 保持しつつ mobile で "宣言" として立つ ✓
+- 、 hanging で line 1 / line 2 の視覚 center 揃う ✓
+- 全体余白が "未完成っぽい" 空白なく、詰まり過ぎもしない ✓
+- 段落 2 の追加 mobile break が意図位置で発火 ✓
+
+Deploy script 変更は auto cleanup 発火を実測確認 (staging dir 空)、`/mnt/ct1` への path 切替も
+動作確認済。
+
+### Residual
+
+- Desktop 側の visual regression は本 session では実施せず (Principle 変更は全て mobile query
+  内、globals.css の signature bold は unicode-range narrow で他 text 非影響、理論上 desktop
+  無影響だが owner 確認望ましい)
+- Consumer-local bold の drift 防止は現状 comment のみ。将来 linter rule 化を検討 (別 track)
+- Products / Contact の mobile typography は本 session の scope 外 (未評価)
+- 本文段落 1 の mobile break composition は現状 desktop 版と同一 (natural wrap)、必要なら別途
+  owner 判断で追加
+
+### Transferable principles (candidates for intent promotion)
+
+本 session で抽出した session-越しの学び (Improvement Request Package C 相当の反映):
+
+- **TP-T1**: Desktop 承認済の layout が mobile portrait では viewport aspect の変化で hierarchy
+  が inversion する (幅占有の逆転)。同 responsive rule 内でも "aspect ratio が変わると意味が
+  変わる" 前提で mobile 実機確認を必ず行うこと
+- **TP-T2**: 同じ役割の primitive (今回は line-break composition) が desktop / mobile で異なる
+  intent を持ちうる。片方 viewport のみで verify した layout は他方で assumption breaking と
+  なる。両 viewport 実機確認を design freeze 前に走らせること
+- **TP-T3**: DS が意図的に primitive を非収録している場合 (今回 bold weight)、consumer 側で
+  scoped exception を追加することは disciplined ならば健全 (LP flagship の逸脱権)。ただし
+  scope 限定 + drift 防止 comment + intent doc 記録の 3 点を必須にする
+- **TP-T4**: 日本語 heading の impact 補完は size 以外に `line-height / letter-spacing /
+  font-weight / tracking` の 4 手段があり、size 制約下で複合的に稼げる。size 増を最初に検討
+  しがちだが、hierarchy 制約下では他 3 手段が有効

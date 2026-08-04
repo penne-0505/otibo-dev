@@ -39,6 +39,15 @@
   display: none;
 }
 
+/* Principle heading span structure。default inline (desktop 影響なし)、mobile
+   query 側で block + absolute で 、を hanging punctuation 化。 */
+.headingLine1,
+.headingLine2,
+.headingLine1Text,
+.headingLine1Comma {
+  display: inline;
+}
+
 .products {
   width: min(calc(100% - var(--spacing-12)), var(--sizes-wide));
   margin: clamp(
@@ -173,19 +182,48 @@
 
 @media (max-width: 47.5rem) {
   .principle {
-    min-height: 47.5rem;
+    min-height: 36rem;
     padding-inline: var(--spacing-5);
+    padding-block-start: clamp(var(--spacing-12), 8vw, var(--spacing-16));
   }
 
   .principleInner {
-    gap: var(--spacing-8);
+    gap: var(--spacing-4);
+  }
+
+  .principleInner > h2 + p {
+    margin-top: clamp(var(--spacing-3), 2vw, var(--spacing-6));
+  }
+  .principleInner > p + p {
+    margin-top: clamp(var(--spacing-2), 1.5vw, var(--spacing-4));
   }
 
   /* mobile だけは display.sm (3.5rem) が 390px 幅に収まらないため、responsive な段下げとして
      site 側で font-size を持つ。desktop は role をそのまま使う。
-     この段下げにより 390px では Products 見出しとの階層が逆転する（未解決、owner 判断待ち）。 */
+     この段下げにより 390px では Products 見出しとの階層が逆転する（未解決、owner 判断待ち）。
+     font-weight 700 は globals.css の signature bold で供給 (LP signature 限定、
+     他 heading への drift 禁止)。 */
   .principle h2 {
     font-size: clamp(var(--font-sizes-xl), 8vw, var(--font-sizes-2xl));
+    line-height: 1.25;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+
+  /* 、 を hanging punctuation 化: line 1 の centering は headingLine1Text 幅で
+     計算され line 2 と main text の視覚 center が揃う。 */
+  .headingLine1,
+  .headingLine2 {
+    display: block;
+  }
+  .headingLine1Text {
+    display: inline-block;
+    position: relative;
+  }
+  .headingLine1Comma {
+    position: absolute;
+    left: 100%;
+    top: 0;
   }
 
   .mobileBreak {
@@ -194,6 +232,9 @@
 
   .principle p {
     font-size: var(--font-sizes-sm);
+    /* heading 幅を超えないよう constrain (visual hierarchy 保護)。 */
+    max-width: 18em;
+    margin-inline: auto;
   }
 
   .products {
